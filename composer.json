@@ -1,0 +1,33 @@
+{
+  "name": "solophp/router",
+  "type": "library",
+  "description": "A lightweight and flexible PHP router with middleware support, route groups, and named routes",
+    "keywords": [
+    "router",
+    "routing",
+    "php-router",
+    "middleware",
+    "route-groups",
+    "named-routes",
+    "php8",
+    "psr-4"
+    ],
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Vitaliy Olos",
+            "email": "vedastudio@gmail.com",
+            "role": "Developer"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Solo\\": "Solo/"
+    }
+  },
+  "require": {
+        "php": ">=8.1"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

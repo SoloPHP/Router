@@ -1,0 +1,7 @@
+!.gitignore
+vendor
+composer.lock
+example
+.idea
+.DS_Store
+Thumbs.db
