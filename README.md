@@ -25,9 +25,11 @@ use Solo\Router\RouteCollector;
 
 $router = new RouteCollector();
 
-// Add simple routes
+// Invokable controller
+$router->get('/users', UserController::class);
+
+// Traditional controller with method
 $router->get('/users', [UserController::class, 'index']);
-$router->post('/users', [UserController::class, 'store']);
 
 // Named routes
 $router->get('/users/{id}', [UserController::class, 'show'])->name('users.show');
@@ -79,6 +81,15 @@ $router->get('/posts[/{category}[/{page}]]', [PostController::class, 'index']);
 // Parameters with regex patterns
 $router->get('/users/{id:[0-9]+}', [UserController::class, 'show']);
 $router->get('/articles/{slug:[a-z0-9-]+}', [ArticleController::class, 'show']);
+```
+
+### Invokable Controllers
+
+Router supports invokable controllers that implement `__invoke` method:
+
+```php
+$router->get('/users', UserController::class);
+$router->post('/users', UserCreateController::class);
 ```
 
 ### Named Routes
@@ -143,7 +154,7 @@ $router->group('/api', function(RouteCollector $router) {
 When a route is matched, it returns an array containing:
 - `method` - HTTP method
 - `group` - Route group prefix
-- `handler` - Route handler (callable or controller array)
+- `handler` - Route handler (callable, controller array or invokable class name)
 - `args` - Route parameters
 - `middleware` - Optional Array of middleware
 - `page` - Optional page identifier

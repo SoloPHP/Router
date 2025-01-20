@@ -19,7 +19,7 @@ class RouteCollector extends Router
      */
     public function get(
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): self {
@@ -31,7 +31,7 @@ class RouteCollector extends Router
      */
     public function post(
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): self {
@@ -43,7 +43,7 @@ class RouteCollector extends Router
      */
     public function put(
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): self {
@@ -55,7 +55,7 @@ class RouteCollector extends Router
      */
     public function patch(
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): self {
@@ -67,7 +67,7 @@ class RouteCollector extends Router
      */
     public function delete(
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): self {
@@ -82,7 +82,7 @@ class RouteCollector extends Router
     private function addHttpRoute(
         string $method,
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware,
         ?string $page = null
     ): self {
@@ -147,7 +147,7 @@ class RouteCollector extends Router
      *     method: string,
      *     group: string,
      *     path: string,
-     *     handler: callable|array,
+     *     handler: callable|array|string,
      *     middleware: array<callable>,
      *     page: string|null
      * }>

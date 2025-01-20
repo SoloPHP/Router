@@ -16,7 +16,7 @@ class Router
      *     method: string,
      *     group: string,
      *     path: string,
-     *     handler: callable|array,
+     *     handler: callable|array|string,
      *     middleware: array<callable>,
      *     page: string|null
      * }> $routes
@@ -31,7 +31,7 @@ class Router
      * @param string $method HTTP method (GET, POST, etc.)
      * @param string $group Route group prefix
      * @param string $path Route path
-     * @param callable|array $handler Route handler
+     * @param callable|array|string $handler
      * @param array<callable> $middleware Array of middleware functions
      * @throws InvalidArgumentException if HTTP method is not supported
      */
@@ -39,7 +39,7 @@ class Router
         string $method,
         string $group,
         string $path,
-        callable|array $handler,
+        callable|array|string $handler,
         array $middleware = [],
         ?string $page = null
     ): void {
@@ -65,7 +65,7 @@ class Router
      * @return array{
      *     method: string,
      *     group: string,
-     *     handler: callable|array,
+     *     handler: callable|array|string,
      *     args: array<string, string>,
      *     middleware: array<callable>,
      *     page: string|null
