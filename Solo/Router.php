@@ -9,10 +9,21 @@ use InvalidArgumentException;
  */
 class Router
 {
-    public const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    private const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
-    /** @var array<array{method: string, group: string, path: string, handler: callable|array, middleware: array}> */
-    protected array $routes = [];
+    /**
+     * @param array<array{
+     *     method: string,
+     *     group: string,
+     *     path: string,
+     *     handler: callable|array,
+     *     middleware: array<callable>,
+     *     page: string|null
+     * }> $routes
+     */
+    public function __construct(
+        protected array $routes = []
+    ) {}
 
     /**
      * Adds a new route to the router.
@@ -24,13 +35,26 @@ class Router
      * @param array<callable> $middleware Array of middleware functions
      * @throws InvalidArgumentException if HTTP method is not supported
      */
-    public function addRoute(string $method, string $group, string $path, callable|array $handler, array $middleware = []): void
-    {
+    public function addRoute(
+        string $method,
+        string $group,
+        string $path,
+        callable|array $handler,
+        array $middleware = [],
+        ?string $page = null
+    ): void {
         if (!in_array(strtoupper($method), self::HTTP_METHODS, true)) {
             throw new InvalidArgumentException("Unsupported HTTP method: {$method}");
         }
 
-        $this->routes[] = compact('method', 'group', 'path', 'handler', 'middleware');
+        $this->routes[] = [
+            'method' => $method,
+            'group' => $group,
+            'path' => $path,
+            'handler' => $handler,
+            'middleware' => $middleware,
+            'page' => $page
+        ];
     }
 
     /**
@@ -38,22 +62,36 @@ class Router
      *
      * @param string $requestMethod HTTP method of the request
      * @param string $url Requested URL
-     * @return array{method: string, group: string, handler: callable|array, args: array<string, string>, middleware: array}|false
+     * @return array{
+     *     method: string,
+     *     group: string,
+     *     handler: callable|array,
+     *     args: array<string, string>,
+     *     middleware: array<callable>,
+     *     page: string|null
+     * }|false
      */
     public function matchRoute(string $requestMethod, string $url): array|false
     {
         $requestMethod = strtoupper($requestMethod);
 
-        foreach ($this->routes as ['method' => $method, 'group' => $group, 'path' => $path, 'handler' => $handler, 'middleware' => $middleware]) {
-            if ($requestMethod !== $method) {
+        foreach ($this->routes as $route) {
+            if ($requestMethod !== $route['method']) {
                 continue;
             }
 
-            $pattern = $this->buildPattern($group . $path);
+            $pattern = $this->buildPattern($route['group'] . $route['path']);
 
             if (preg_match($pattern, $url, $matches)) {
                 $args = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-                return compact('method', 'group', 'handler', 'args', 'middleware');
+                return [
+                    'method' => $route['method'],
+                    'group' => $route['group'],
+                    'handler' => $route['handler'],
+                    'args' => $args,
+                    'middleware' => $route['middleware'],
+                    'page' => $route['page']
+                ];
             }
         }
 
