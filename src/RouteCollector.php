@@ -1,8 +1,9 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Solo\Router;
 
-use Solo\Router;
 use InvalidArgumentException;
 
 /**
@@ -138,22 +139,5 @@ class RouteCollector extends Router
 
         $this->group = $previousGroup;
         $this->groupMiddleware = $previousMiddleware;
-    }
-
-    /**
-     * Returns all registered routes.
-     *
-     * @return array<string|int, array{
-     *     method: string,
-     *     group: string,
-     *     path: string,
-     *     handler: callable|array|string,
-     *     middleware: array<callable>,
-     *     page: string|null
-     * }>
-     */
-    public function getRoutes(): array
-    {
-        return $this->routes;
     }
 }

@@ -1,9 +1,12 @@
 # Solo Router
 
-[![Latest Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/solophp/application/releases)
-[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/solophp/router.svg)](https://packagist.org/packages/solophp/router)
+[![License](https://img.shields.io/packagist/l/solophp/router.svg)](https://github.com/solophp/router/blob/main/LICENSE)
+[![PHP Version](https://img.shields.io/packagist/php-v/solophp/router.svg)](https://packagist.org/packages/solophp/router)
 
 A lightweight and flexible PHP router with middleware support, route groups, and named routes.
+
+> **Note**: This is version 2.0.0 with breaking changes. If you're upgrading from version 1.x, please check the [Migration Guide](MIGRATION.md) for detailed instructions.
 
 ## Requirements
 
@@ -165,6 +168,19 @@ The router throws `InvalidArgumentException` in the following cases:
 - When adding a route with an unsupported HTTP method
 - When trying to name a route before adding any routes
 - When trying to use a route name that already exists
+
+## Testing
+
+```bash
+# Run tests
+composer test
+
+# Run code style check
+composer cs
+
+# Fix code style issues
+composer cs-fix
+```
 
 ## License
 

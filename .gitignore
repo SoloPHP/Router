@@ -5,3 +5,17 @@ example
 .idea
 .DS_Store
 Thumbs.db
+
+# Testing
+.phpunit.result.cache
+coverage/
+tests/coverage/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+
+# OS
+*.log
+*.tmp

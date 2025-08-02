@@ -1,13 +1,15 @@
-<?php declare(strict_types=1);
+<?php
 
-namespace Solo;
+declare(strict_types=1);
+
+namespace Solo\Router;
 
 use InvalidArgumentException;
 
 /**
  * Base router class for handling HTTP routes.
  */
-class Router
+class Router implements RouterInterface
 {
     private const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
@@ -23,7 +25,8 @@ class Router
      */
     public function __construct(
         protected array $routes = []
-    ) {}
+    ) {
+    }
 
     /**
      * Adds a new route to the router.
@@ -43,7 +46,9 @@ class Router
         array $middleware = [],
         ?string $page = null
     ): void {
-        if (!in_array(strtoupper($method), self::HTTP_METHODS, true)) {
+        $method = strtoupper($method);
+
+        if (!in_array($method, self::HTTP_METHODS, true)) {
             throw new InvalidArgumentException("Unsupported HTTP method: {$method}");
         }
 
@@ -99,6 +104,23 @@ class Router
     }
 
     /**
+     * Returns all registered routes.
+     *
+     * @return array<string|int, array{
+     *     method: string,
+     *     group: string,
+     *     path: string,
+     *     handler: callable|array|string,
+     *     middleware: array<callable>,
+     *     page: string|null
+     * }>
+     */
+    public function getRoutes(): array
+    {
+        return $this->routes;
+    }
+
+    /**
      * Builds a regular expression pattern for route matching.
      */
     private function buildPattern(string $path): string
@@ -106,7 +128,7 @@ class Router
         $pattern = str_replace('/', '\/', $path);
         $pattern = preg_replace('/\[(?![^{]*})/', '(?:', $pattern);
         $pattern = preg_replace('/](?![^{]*})/', ')?', $pattern);
-        $pattern = preg_replace('/{(\w+)(:([^}]+))?}/', '(?<$1>$3)', $pattern);
+        $pattern = preg_replace('/{(\w+)(:([^}]+))?}/', '(?<$1>[^\/]+)', $pattern);
 
         return '/^' . $pattern . '$/';
     }
