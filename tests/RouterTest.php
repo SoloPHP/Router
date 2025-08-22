@@ -21,13 +21,13 @@ class RouterTest extends TestCase
     {
         $this->router->addRoute('GET', '/api', '/users/{id}', function ($id) {
             return "User: $id";
-        });
+        }, [], 'users.show');
 
         $routes = $this->router->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('GET', $routes[0]['method']);
-        $this->assertEquals('/api', $routes[0]['group']);
-        $this->assertEquals('/users/{id}', $routes[0]['path']);
+        $this->assertEquals('GET', $routes[0]->method);
+        $this->assertEquals('/api', $routes[0]->group);
+        $this->assertEquals('/users/{id}', $routes[0]->path);
     }
 
     public function testAddRouteWithInvalidMethod(): void
@@ -43,14 +43,15 @@ class RouterTest extends TestCase
     {
         $this->router->addRoute('GET', '/api', '/users/{id}', function ($id) {
             return "User: $id";
-        });
+        }, [], 'users.show');
 
         $result = $this->router->matchRoute('GET', '/api/users/123');
 
         $this->assertNotFalse($result);
-        $this->assertEquals('GET', $result['method']);
-        $this->assertEquals('/api', $result['group']);
-        $this->assertEquals(['id' => '123'], $result['args']);
+        $this->assertEquals('GET', $result->route->method);
+        $this->assertEquals('/api', $result->route->group);
+        $this->assertEquals(['id' => '123'], $result->args);
+        $this->assertEquals('users.show', $result->route->name);
     }
 
     public function testMatchRouteNotFound(): void
@@ -74,7 +75,7 @@ class RouterTest extends TestCase
 
         $result = $this->router->matchRoute('GET', '/api/posts/2');
         $this->assertNotFalse($result);
-        $this->assertEquals(['page' => '2'], $result['args']);
+        $this->assertEquals(['page' => '2'], $result->args);
     }
 
     public function testMatchRouteWithRegexPattern(): void
@@ -85,6 +86,6 @@ class RouterTest extends TestCase
 
         $result = $this->router->matchRoute('GET', '/api/users/123');
         $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['args']);
+        $this->assertEquals(['id' => '123'], $result->args);
     }
 }

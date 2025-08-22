@@ -6,8 +6,6 @@
 
 A lightweight and flexible PHP router with middleware support, route groups, and named routes.
 
-> **Note**: This is version 2.0.0 with breaking changes. If you're upgrading from version 1.x, please check the [Migration Guide](MIGRATION.md) for detailed instructions.
-
 ## Requirements
 
 - PHP 8.1 or higher
@@ -34,17 +32,14 @@ $router->get('/users', UserController::class);
 // Traditional controller with method
 $router->get('/users', [UserController::class, 'index']);
 
-// Named routes
-$router->get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+// Named routes (via argument)
+$router->get('/users/{id}', [UserController::class, 'show'], [], 'users.show');
 
 // Optional parameters
 $router->get('/posts[/{page}]', [PostController::class, 'index']);
 
-// With middleware and page attribute
-$router->post('/admin/posts', [PostController::class, 'store'], 
-    [AuthMiddleware::class], 
-    'admin.posts'
-);
+// With middleware and name
+$router->post('/admin/posts', [PostController::class, 'store'], [AuthMiddleware::class], 'admin.posts');
 
 // Route groups
 $router->group('/admin', function(RouteCollector $router) {
@@ -53,13 +48,13 @@ $router->group('/admin', function(RouteCollector $router) {
 }, [AuthMiddleware::class]);
 
 // Match route
-$route = $router->matchRoute('GET', '/users/123');
-if ($route) {
-    // Handle the route
-    $handler = $route['handler'];
-    $args = $route['args']; // ['id' => '123']
-    $middleware = $route['middleware'];
-    $page = $route['page']; // Optional page identifier
+$match = $router->matchRoute('GET', '/users/123');
+if ($match) {
+    $route = $match->route; // instance of Solo\Router\Route
+    $handler = $route->handler;
+    $args = $match->args; // ['id' => '123']
+    $middlewares = $route->middlewares;
+    $name = $route->name; // 'users.show' or null
 }
 ```
 
@@ -98,8 +93,7 @@ $router->post('/users', UserCreateController::class);
 ### Named Routes
 
 ```php
-$router->get('/users/{id}', [UserController::class, 'show'])
-    ->name('users.show');
+$router->get('/users/{id}', [UserController::class, 'show'], [], 'users.show');
 ```
 
 ### Route Groups
@@ -113,26 +107,7 @@ $router->group('/admin', function(RouteCollector $router) {
 }, [AdminMiddleware::class]);
 ```
 
-### Page Attributes
 
-Routes can have an optional page attribute for identifying specific pages or sections:
-
-```php
-// Simple page attribute
-$router->get('/about', [PageController::class, 'about'], [], 'about');
-
-// With middleware and page
-$router->get('/profile', [ProfileController::class, 'show'], 
-    [AuthMiddleware::class], 
-    'user.profile'
-);
-
-// In groups
-$router->group('/blog', function(RouteCollector $router) {
-    $router->get('/', [BlogController::class, 'index'], [], 'blog.index');
-    $router->get('/{slug}', [BlogController::class, 'show'], [], 'blog.show');
-});
-```
 
 ### Middleware Support
 
@@ -154,19 +129,14 @@ $router->group('/api', function(RouteCollector $router) {
 
 ### Route Information
 
-When a route is matched, it returns an array containing:
-- `method` - HTTP method
-- `group` - Route group prefix
-- `handler` - Route handler (callable, controller array or invokable class name)
-- `args` - Route parameters
-- `middleware` - Optional Array of middleware
-- `page` - Optional page identifier
+When a route is matched, it returns a `MatchResult` object with:
+- `route` — instance of `Solo\Router\Route` with readonly properties: `method`, `group`, `path`, `handler`, `middlewares`, `name`
+- `args` — associative array of route parameters
 
 ## Error Handling
 
 The router throws `InvalidArgumentException` in the following cases:
 - When adding a route with an unsupported HTTP method
-- When trying to name a route before adding any routes
 - When trying to use a route name that already exists
 
 ## Testing

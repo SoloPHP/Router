@@ -16,16 +16,16 @@ interface RouterInterface
      * @param string $group Route group prefix
      * @param string $path Route path
      * @param callable|array|string $handler
-     * @param array<callable> $middleware Array of middleware functions
-     * @param string|null $page Page identifier
+     * @param array<callable> $middlewares Array of middleware functions
+     * @param string|null $name Route name
      */
     public function addRoute(
         string $method,
         string $group,
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): void;
 
     /**
@@ -33,28 +33,22 @@ interface RouterInterface
      *
      * @param string $requestMethod HTTP method of the request
      * @param string $url Requested URL
-     * @return array{
-     *     method: string,
-     *     group: string,
-     *     handler: callable|array|string,
-     *     args: array<string, string>,
-     *     middleware: array<callable>,
-     *     page: string|null
-     * }|false
+     * @return MatchResult|false Returns MatchResult if matched, false otherwise.
      */
-    public function matchRoute(string $requestMethod, string $url): array|false;
+    public function matchRoute(string $requestMethod, string $url): MatchResult|false;
 
     /**
      * Returns all registered routes.
      *
-     * @return array<string|int, array{
-     *     method: string,
-     *     group: string,
-     *     path: string,
-     *     handler: callable|array|string,
-     *     middleware: array<callable>,
-     *     page: string|null
-     * }>
+     * @return array<int, Route>
      */
     public function getRoutes(): array;
+
+    /**
+     * Returns route by name or null if not found.
+     *
+     * @param string $name
+     * @return Route|null
+     */
+    public function getRouteByName(string $name): ?Route;
 }

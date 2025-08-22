@@ -25,8 +25,8 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('GET', $routes[0]['method']);
-        $this->assertEquals('/users/{id}', $routes[0]['path']);
+        $this->assertEquals('GET', $routes[0]->method);
+        $this->assertEquals('/users/{id}', $routes[0]->path);
     }
 
     public function testPostRoute(): void
@@ -37,7 +37,7 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('POST', $routes[0]['method']);
+        $this->assertEquals('POST', $routes[0]->method);
     }
 
     public function testPutRoute(): void
@@ -48,7 +48,7 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('PUT', $routes[0]['method']);
+        $this->assertEquals('PUT', $routes[0]->method);
     }
 
     public function testPatchRoute(): void
@@ -59,7 +59,7 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('PATCH', $routes[0]['method']);
+        $this->assertEquals('PATCH', $routes[0]->method);
     }
 
     public function testDeleteRoute(): void
@@ -70,40 +70,37 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('DELETE', $routes[0]['method']);
+        $this->assertEquals('DELETE', $routes[0]->method);
     }
 
     public function testNamedRoute(): void
     {
         $this->collector->get('/users/{id}', function ($id) {
             return "User: $id";
-        })->name('user.show');
+        }, [], 'user.show');
 
         $routes = $this->collector->getRoutes();
-        $this->assertArrayHasKey('user.show', $routes);
-        $this->assertEquals('GET', $routes['user.show']['method']);
-    }
+        $this->assertCount(1, $routes);
+        $this->assertEquals('GET', $routes[0]->method);
+        $this->assertEquals('user.show', $routes[0]->name);
 
-    public function testNamedRouteWithoutPreviousRoute(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Cannot name route: no routes have been added');
-
-        $this->collector->name('user.show');
+        $routeByName = $this->collector->getRouteByName('user.show');
+        $this->assertNotNull($routeByName);
+        $this->assertEquals('GET', $routeByName->method);
     }
 
     public function testNamedRouteWithDuplicateName(): void
     {
         $this->collector->get('/users/{id}', function ($id) {
             return "User: $id";
-        })->name('user.show');
+        }, [], 'user.show');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Route with name 'user.show' already exists");
 
         $this->collector->get('/users', function () {
             return "Users list";
-        })->name('user.show');
+        }, [], 'user.show');
     }
 
     public function testRouteGroup(): void
@@ -122,7 +119,7 @@ class RouteCollectorTest extends TestCase
 
         // Check that both routes have the /api prefix
         foreach ($routes as $route) {
-            $this->assertEquals('/api', $route['group']);
+            $this->assertEquals('/api', $route->group);
         }
     }
 
@@ -140,7 +137,7 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertContains($middleware, $routes[0]['middleware']);
+        $this->assertContains($middleware, $routes[0]->middlewares);
     }
 
     public function testNestedRouteGroups(): void
@@ -155,7 +152,7 @@ class RouteCollectorTest extends TestCase
 
         $routes = $this->collector->getRoutes();
         $this->assertCount(1, $routes);
-        $this->assertEquals('/api/v1', $routes[0]['group']);
+        $this->assertEquals('/api/v1', $routes[0]->group);
     }
 
     public function testMatchRouteWithGroup(): void
@@ -168,6 +165,6 @@ class RouteCollectorTest extends TestCase
 
         $result = $this->collector->matchRoute('GET', '/api/users/123');
         $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['args']);
+        $this->assertEquals(['id' => '123'], $result->args);
     }
 }

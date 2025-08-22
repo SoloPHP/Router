@@ -13,7 +13,6 @@ class RouteCollector extends Router
 {
     private string $group = '';
     private array $groupMiddleware = [];
-    private ?int $lastIndex = null;
 
     /**
      * Adds a GET route.
@@ -21,10 +20,10 @@ class RouteCollector extends Router
     public function get(
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): self {
-        return $this->addHttpRoute('GET', $path, $handler, $middleware, $page);
+        return $this->addHttpRoute('GET', $path, $handler, $middlewares, $name);
     }
 
     /**
@@ -33,10 +32,10 @@ class RouteCollector extends Router
     public function post(
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): self {
-        return $this->addHttpRoute('POST', $path, $handler, $middleware, $page);
+        return $this->addHttpRoute('POST', $path, $handler, $middlewares, $name);
     }
 
     /**
@@ -45,10 +44,10 @@ class RouteCollector extends Router
     public function put(
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): self {
-        return $this->addHttpRoute('PUT', $path, $handler, $middleware, $page);
+        return $this->addHttpRoute('PUT', $path, $handler, $middlewares, $name);
     }
 
     /**
@@ -57,10 +56,10 @@ class RouteCollector extends Router
     public function patch(
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): self {
-        return $this->addHttpRoute('PATCH', $path, $handler, $middleware, $page);
+        return $this->addHttpRoute('PATCH', $path, $handler, $middlewares, $name);
     }
 
     /**
@@ -69,71 +68,51 @@ class RouteCollector extends Router
     public function delete(
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): self {
-        return $this->addHttpRoute('DELETE', $path, $handler, $middleware, $page);
+        return $this->addHttpRoute('DELETE', $path, $handler, $middlewares, $name);
     }
 
     /**
      * Adds an HTTP route with the specified method.
      *
-     * @param array<callable> $middleware Array of middleware functions
+     * @param array<callable> $middlewares Array of middleware functions
      */
     private function addHttpRoute(
         string $method,
         string $path,
         callable|array|string $handler,
-        array $middleware,
-        ?string $page = null
+        array $middlewares,
+        ?string $name = null
     ): self {
         $this->addRoute(
             method: $method,
             group: $this->group,
             path: $path,
             handler: $handler,
-            middleware: array_merge($middleware, $this->groupMiddleware),
-            page: $page
+            middlewares: array_merge($middlewares, $this->groupMiddleware),
+            name: $name
         );
 
-        $this->lastIndex = array_key_last($this->routes);
         return $this;
-    }
-
-    /**
-     * Names the last added route.
-     *
-     * @throws InvalidArgumentException if no routes have been added or the name already exists
-     */
-    public function name(string $name): void
-    {
-        if ($this->lastIndex === null) {
-            throw new InvalidArgumentException('Cannot name route: no routes have been added');
-        }
-
-        if (isset($this->routes[$name])) {
-            throw new InvalidArgumentException("Route with name '{$name}' already exists");
-        }
-
-        $this->routes[$name] = $this->routes[$this->lastIndex];
-        unset($this->routes[$this->lastIndex]);
     }
 
     /**
      * Creates a route group with prefix and middleware.
      *
-     * @param array<callable> $middleware Array of middleware functions
+     * @param array<callable> $middlewares Array of middleware functions
      */
     public function group(
         string $prefix,
         callable $callback,
-        array $middleware = []
+        array $middlewares = []
     ): void {
         $previousGroup = $this->group;
         $previousMiddleware = $this->groupMiddleware;
 
         $this->group = $previousGroup . $prefix;
-        $this->groupMiddleware = array_merge($middleware, $previousMiddleware);
+        $this->groupMiddleware = array_merge($middlewares, $previousMiddleware);
 
         $callback($this);
 

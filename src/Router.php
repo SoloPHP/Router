@@ -14,15 +14,10 @@ class Router implements RouterInterface
     private const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
     /**
-     * @param array<array{
-     *     method: string,
-     *     group: string,
-     *     path: string,
-     *     handler: callable|array|string,
-     *     middleware: array<callable>,
-     *     page: string|null
-     * }> $routes
+     * @var array<string,int> Map of route name to index in $routes
      */
+    protected array $routeNameIndex = [];
+
     public function __construct(
         protected array $routes = []
     ) {
@@ -35,16 +30,16 @@ class Router implements RouterInterface
      * @param string $group Route group prefix
      * @param string $path Route path
      * @param callable|array|string $handler
-     * @param array<callable> $middleware Array of middleware functions
-     * @throws InvalidArgumentException if HTTP method is not supported
+     * @param array<callable> $middlewares Array of middleware functions
+     * @param string|null $name
      */
     public function addRoute(
         string $method,
         string $group,
         string $path,
         callable|array|string $handler,
-        array $middleware = [],
-        ?string $page = null
+        array $middlewares = [],
+        ?string $name = null
     ): void {
         $method = strtoupper($method);
 
@@ -52,14 +47,24 @@ class Router implements RouterInterface
             throw new InvalidArgumentException("Unsupported HTTP method: {$method}");
         }
 
-        $this->routes[] = [
-            'method' => $method,
-            'group' => $group,
-            'path' => $path,
-            'handler' => $handler,
-            'middleware' => $middleware,
-            'page' => $page
-        ];
+        if ($name !== null) {
+            if (isset($this->routeNameIndex[$name])) {
+                throw new InvalidArgumentException("Route with name '{$name}' already exists");
+            }
+        }
+
+        $this->routes[] = new Route(
+            method: $method,
+            group: $group,
+            path: $path,
+            handler: $handler,
+            middlewares: $middlewares,
+            name: $name
+        );
+
+        if ($name !== null) {
+            $this->routeNameIndex[$name] = array_key_last($this->routes);
+        }
     }
 
     /**
@@ -67,36 +72,22 @@ class Router implements RouterInterface
      *
      * @param string $requestMethod HTTP method of the request
      * @param string $url Requested URL
-     * @return array{
-     *     method: string,
-     *     group: string,
-     *     handler: callable|array|string,
-     *     args: array<string, string>,
-     *     middleware: array<callable>,
-     *     page: string|null
-     * }|false
+     * @return MatchResult|false Returns MatchResult if matched, false otherwise.
      */
-    public function matchRoute(string $requestMethod, string $url): array|false
+    public function matchRoute(string $requestMethod, string $url): MatchResult|false
     {
         $requestMethod = strtoupper($requestMethod);
 
         foreach ($this->routes as $route) {
-            if ($requestMethod !== $route['method']) {
+            if ($requestMethod !== $route->method) {
                 continue;
             }
 
-            $pattern = $this->buildPattern($route['group'] . $route['path']);
+            $pattern = $this->buildPattern($route->group . $route->path);
 
             if (preg_match($pattern, $url, $matches)) {
                 $args = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-                return [
-                    'method' => $route['method'],
-                    'group' => $route['group'],
-                    'handler' => $route['handler'],
-                    'args' => $args,
-                    'middleware' => $route['middleware'],
-                    'page' => $route['page']
-                ];
+                return new MatchResult($route, $args);
             }
         }
 
@@ -112,12 +103,34 @@ class Router implements RouterInterface
      *     path: string,
      *     handler: callable|array|string,
      *     middleware: array<callable>,
-     *     page: string|null
+     *     name: string|null
      * }>
      */
     public function getRoutes(): array
     {
         return $this->routes;
+    }
+
+    /**
+     * Returns a route by its name or null if not found.
+     *
+     * @return array{
+     *     method: string,
+     *     group: string,
+     *     path: string,
+     *     handler: callable|array|string,
+     *     middleware: array<callable>,
+     *     name: string|null
+     * }|null
+     */
+    public function getRouteByName(string $name): ?Route
+    {
+        if (!isset($this->routeNameIndex[$name])) {
+            return null;
+        }
+
+        $index = $this->routeNameIndex[$name];
+        return $this->routes[$index] ?? null;
     }
 
     /**
