@@ -141,7 +141,8 @@ class Router implements RouterInterface
         $pattern = str_replace('/', '\/', $path);
         $pattern = preg_replace('/\[(?![^{]*})/', '(?:', $pattern);
         $pattern = preg_replace('/](?![^{]*})/', ')?', $pattern);
-        $pattern = preg_replace('/{(\w+)(:([^}]+))?}/', '(?<$1>[^\/]+)', $pattern);
+        $pattern = preg_replace('/{(\w+):([^}]+)}/', '(?<$1>$2)', $pattern);
+        $pattern = preg_replace('/{(\w+)}/', '(?<$1>[^\/]+)', $pattern);
 
         return '/^' . $pattern . '$/';
     }
