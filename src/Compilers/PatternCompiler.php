@@ -15,8 +15,9 @@ final class PatternCompiler
     {
         $this->parameters = [];
 
-        $safePath = $this->extractParameters($path);
-        $pattern = $this->processOptionalSegments($safePath);
+        // Optimized compilation process
+        $pattern = $this->extractParameters($path);
+        $pattern = $this->processOptionalSegments($pattern);
         $pattern = $this->restoreParameters($pattern);
         $pattern = $this->escapePattern($pattern);
 
