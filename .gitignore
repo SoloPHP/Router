@@ -4,4 +4,19 @@ composer.lock
 example
 .idea
 .DS_Store
+.phpstan
 Thumbs.db
+
+# Testing
+.phpunit.result.cache
+coverage/
+tests/coverage/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+
+# OS
+*.log
+*.tmp
