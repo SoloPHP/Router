@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/packagist/l/solophp/router.svg)](https://github.com/solophp/router/blob/main/LICENSE)
 [![PHP Version](https://img.shields.io/packagist/php-v/solophp/router.svg)](https://packagist.org/packages/solophp/router)
 
-A lightweight and flexible PHP router with middleware support, route groups, named routes, and advanced optional segment patterns.
+A high-performance PHP router with middleware support, route groups, named routes, and advanced optional segment patterns.
 
 ## Key Features
 

@@ -39,7 +39,7 @@ final class RouteMatcher
         // Check static routes cache first (fastest path)
         if (isset($this->staticRoutes[$method][$uri])) {
             return $this->staticRoutes[$method][$uri];
-            }
+        }
 
         // Use indexed routes by method to avoid checking all routes
         $methodRoutes = $this->routesByMethod[$method] ?? [];

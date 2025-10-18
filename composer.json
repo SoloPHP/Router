@@ -1,7 +1,7 @@
 {
   "name": "solophp/router",
   "type": "library",
-  "description": "A lightweight and flexible PHP router with middleware support, route groups, named routes, and advanced optional segment patterns.",
+  "description": "A high-performance PHP router with middleware support, route groups, named routes, and advanced optional segment patterns.",
     "keywords": [
     "router",
     "routing",
