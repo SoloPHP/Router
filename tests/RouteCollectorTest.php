@@ -153,7 +153,7 @@ class RouteCollectorTest extends TestCase
     public function testOptionalLanguagePrefixWithSingleGroup(): void
     {
         // Single group with optional language prefix
-        $this->collector->group('/{lang:(?:[a-z]{2}\\/)?}', function ($router) {
+        $this->collector->group('/{lang:(?:[a-z]{2}\/)?}', function ($router) {
             $router->get('admin/users', function () {
                 return 'Admin users';
             });
@@ -179,5 +179,43 @@ class RouteCollectorTest extends TestCase
         // Should NOT match with invalid language code (3 letters)
         $result = $this->collector->match('GET', '/eng/admin/users');
         $this->assertFalse($result);
+    }
+
+    public function testOptionalLanguageGroupWithOptionalSlash(): void
+    {
+        $this->collector->group('[/{lang:[a-z]{2}}]', function (RouteCollector $router): void {
+            $router->get('[/]', 'home');
+            $router->get('/documentation', 'docs');
+        });
+
+        $match = $this->collector->match('GET', '');
+        $this->assertNotFalse($match);
+        $this->assertSame('home', $match['handler']);
+        $this->assertSame([], $match['params']);
+
+        $match = $this->collector->match('GET', '/');
+        $this->assertNotFalse($match);
+        $this->assertSame('home', $match['handler']);
+        $this->assertSame([], $match['params']);
+
+        $match = $this->collector->match('GET', '/en');
+        $this->assertNotFalse($match);
+        $this->assertSame('home', $match['handler']);
+        $this->assertSame(['lang' => 'en'], $match['params']);
+
+        $match = $this->collector->match('GET', '/en/');
+        $this->assertNotFalse($match);
+        $this->assertSame('home', $match['handler']);
+        $this->assertSame(['lang' => 'en'], $match['params']);
+
+        $match = $this->collector->match('GET', '/documentation');
+        $this->assertNotFalse($match);
+        $this->assertSame('docs', $match['handler']);
+        $this->assertSame([], $match['params']);
+
+        $match = $this->collector->match('GET', '/en/documentation');
+        $this->assertNotFalse($match);
+        $this->assertSame('docs', $match['handler']);
+        $this->assertSame(['lang' => 'en'], $match['params']);
     }
 }

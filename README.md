@@ -90,6 +90,13 @@ $router->get('/api[/v{version}]/users[/{id}]', [ApiController::class, 'users']);
 // Nested optional segments
 $router->get('/shop[/category/{cat}[/subcategory/{subcat}]]', [ShopController::class, 'index']);
 // Matches: /shop, /shop/category/electronics, /shop/category/electronics/subcategory/phones
+
+// Optional group prefix with optional trailing slash
+$router->group('[/{lang:[a-z]{2}}]', function (RouteCollector $router) {
+    $router->get('[/]', [HomeController::class, 'index']);
+    $router->get('/documentation', [HomeController::class, 'documentation']);
+});
+// Matches: /, /en, /en/, /documentation, /en/documentation
 ```
 
 ## Route Groups
