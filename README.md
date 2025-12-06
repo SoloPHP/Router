@@ -9,6 +9,7 @@ A high-performance PHP router with middleware support, route groups, named route
 
 ## Key Features
 
+- **Fluent API**: Chainable `->name()` and `->middleware()` methods
 - **HTTP Methods**: GET, POST, PUT, PATCH, DELETE
 - **Route Parameters**: Required and optional with regex patterns
 - **Advanced Optional Segments**: Support for complex patterns including middle segments, nested segments, and multiple optional parts
@@ -43,8 +44,10 @@ $router = new RouteCollector();
 $router->get('/users', [UserController::class, 'index']);
 $router->get('/users/{id}', [UserController::class, 'show']);
 
-// Route with middleware
-$router->post('/posts', [PostController::class, 'store'], [AuthMiddleware::class]);
+// Route with middleware and name (fluent API)
+$router->post('/posts', [PostController::class, 'store'])
+    ->middleware(AuthMiddleware::class)
+    ->name('posts.store');
 
 // Route groups
 $router->group('/admin', function(RouteCollector $router) {
@@ -121,19 +124,24 @@ $router->group('/api', function(RouteCollector $router) {
 
 ```php
 // Single middleware
-$router->get('/profile', [ProfileController::class, 'show'], [AuthMiddleware::class]);
+$router->get('/profile', [ProfileController::class, 'show'])
+    ->middleware(AuthMiddleware::class);
 
 // Multiple middleware
-$router->get('/admin/settings', [SettingsController::class, 'show'], [
-    AuthMiddleware::class,
-    AdminMiddleware::class
-]);
+$router->get('/admin/settings', [SettingsController::class, 'show'])
+    ->middleware(AuthMiddleware::class, AdminMiddleware::class);
+
+// Group middleware (passed as parameter)
+$router->group('/admin', function(RouteCollector $router) {
+    $router->get('/dashboard', [AdminController::class, 'dashboard']);
+}, [AuthMiddleware::class]);
 ```
 
 ## Named Routes
 
 ```php
-$router->get('/users/{id}', [UserController::class, 'show'], [], 'users.show');
+$router->get('/users/{id}', [UserController::class, 'show'])
+    ->name('users.show');
 
 // Get route by name
 $route = $router->getRouteByName('users.show');
