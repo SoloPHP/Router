@@ -94,9 +94,6 @@ class Router implements RouterInterface
             $this->staticRoutes[$method . ':' . $fullPath] = $route;
         } else {
             // Dynamic or complex route - group by method
-            if (!isset($this->dynamicRoutes[$method])) {
-                $this->dynamicRoutes[$method] = [];
-            }
             $this->dynamicRoutes[$method][] = $route;
 
             // Clear regex matcher cache when adding dynamic routes

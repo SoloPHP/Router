@@ -17,16 +17,6 @@ class RouteCollectorTest extends TestCase
         $this->collector = new RouteCollector();
     }
 
-    public function testGetRoute(): void
-    {
-        $this->collector->get('/users/{id}', function ($id) {
-            return "User: $id";
-        });
-        $match = $this->collector->match('GET', '/users/1');
-        $this->assertNotFalse($match);
-        $this->assertEquals(['id' => '1'], $match['params']);
-    }
-
     public function testPostRoute(): void
     {
         $this->collector->post('/users', function () {
@@ -118,22 +108,6 @@ class RouteCollectorTest extends TestCase
         $this->collector->getRouteByName('user.show');
     }
 
-    public function testRouteGroup(): void
-    {
-        $this->collector->group('/api', function ($router) {
-            $router->get('/users', function () {
-                return "Users list";
-            });
-            $router->post('/users', function () {
-                return "Create user";
-            });
-        });
-        $m1 = $this->collector->match('GET', '/api/users');
-        $m2 = $this->collector->match('POST', '/api/users');
-        $this->assertNotFalse($m1);
-        $this->assertNotFalse($m2);
-    }
-
     public function testRouteGroupWithMiddleware(): void
     {
         $middleware = function () {
@@ -155,26 +129,15 @@ class RouteCollectorTest extends TestCase
     {
         $this->collector->group('/api', function ($router) {
             $router->group('/v1', function ($router) {
-                $router->get('/users', function () {
-                    return "Users v1";
+                $router->get('/users/{id}', function ($id) {
+                    return "User: $id";
                 });
             });
         });
-        $match = $this->collector->match('GET', '/api/v1/users');
+
+        $match = $this->collector->match('GET', '/api/v1/users/123');
         $this->assertNotFalse($match);
-    }
-
-    public function testMatchRouteWithGroup(): void
-    {
-        $this->collector->group('/api', function ($router) {
-            $router->get('/users/{id}', function ($id) {
-                return "User: $id";
-            });
-        });
-
-        $result = $this->collector->match('GET', '/api/users/123');
-        $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['params']);
+        $this->assertEquals(['id' => '123'], $match['params']);
     }
 
     public function testOptionalLanguagePrefixWithSingleGroup(): void

@@ -8,6 +8,9 @@ use InvalidArgumentException;
 
 final class PatternCompiler
 {
+    private const PARAM_PLACEHOLDER = '__P%d__';
+    private const REGEX_PLACEHOLDER = '__REG_%d__';
+
     /** @var array<string, array{name: string, pattern: string}> */
     private array $parameters = [];
 
@@ -29,8 +32,7 @@ final class PatternCompiler
         return preg_replace_callback(
             '/{(\w+)(?::([^{}]*(?:{[^}]*}[^{}]*)*))?}/',
             function ($m) {
-                $index = count($this->parameters);
-                $placeholder = "__P{$index}__";
+                $placeholder = sprintf(self::PARAM_PLACEHOLDER, count($this->parameters));
                 $this->parameters[$placeholder] = [
                     'name' => $m[1],
                     'pattern' => $m[2] ?? '[^\/]+'
@@ -97,7 +99,7 @@ final class PatternCompiler
                     }
 
                     $construct = substr($pattern, $start, $end - $start);
-                    $id = '__REG_' . count($constructs) . '__';
+                    $id = sprintf(self::REGEX_PLACEHOLDER, count($constructs));
                     $constructs[$id] = $construct;
                     $pattern = substr_replace($pattern, $id, $start, $end - $start);
                     $len = strlen($pattern);

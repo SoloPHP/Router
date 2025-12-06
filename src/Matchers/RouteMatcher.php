@@ -46,7 +46,7 @@ final class RouteMatcher
 
         // Lazy compilation - only compile patterns when needed
         foreach ($methodRoutes as $route) {
-                $fullPath = $route->group . $route->path;
+            $fullPath = $route->group . $route->path;
             $patternKey = $fullPath;
 
             // Check if pattern is already compiled and cached
@@ -85,11 +85,7 @@ final class RouteMatcher
     private function indexRoutes(array $routes): void
     {
         foreach ($routes as $route) {
-            $method = $route->method->value;
-            if (!isset($this->routesByMethod[$method])) {
-                $this->routesByMethod[$method] = [];
-            }
-            $this->routesByMethod[$method][] = $route;
+            $this->routesByMethod[$route->method->value][] = $route;
         }
         $this->routesIndexed = true;
     }

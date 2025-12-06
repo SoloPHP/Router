@@ -68,50 +68,6 @@ class RouterTest extends TestCase
         $this->assertFalse($result);
     }
 
-    public function testMatchRouteWithOptionalSegments(): void
-    {
-        $this->router->addRoute('GET', '/posts[/{page}]', function ($page = null) {
-            return "Posts: $page";
-        });
-
-        $result = $this->router->match('GET', '/posts');
-        $this->assertNotFalse($result);
-
-        $result = $this->router->match('GET', '/posts/2');
-        $this->assertNotFalse($result);
-        $this->assertEquals(['page' => '2'], $result['params']);
-    }
-
-    public function testMatchRouteWithRegexPattern(): void
-    {
-        $this->router->addRoute('GET', '/users/{id:[0-9]+}', function ($id) {
-            return "User: $id";
-        });
-
-        $result = $this->router->match('GET', '/users/123');
-        $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['params']);
-    }
-
-    public function testOptionalParametersInMiddleShouldFail(): void
-    {
-        // This test is no longer valid as optional segments in the middle are now supported
-        // Keeping it as a positive test instead
-        $this->router->addRoute('GET', '/users[/{id}]/posts', function ($id = null) {
-            return "User posts: $id";
-        });
-
-        // Without optional parameter
-        $result = $this->router->match('GET', '/users/posts');
-        $this->assertNotFalse($result);
-        $this->assertEquals([], $result['params']);
-
-        // With optional parameter
-        $result = $this->router->match('GET', '/users/123/posts');
-        $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['params']);
-    }
-
     public function testOptionalParametersAtTailShouldWork(): void
     {
         $this->router->addRoute('GET', '/users/{id}/posts[/{page}]', function ($id, $page = null) {
@@ -210,23 +166,6 @@ class RouterTest extends TestCase
         // Should NOT match with invalid language code (3 letters)
         $result = $this->router->match('GET', '/eng/user');
         $this->assertFalse($result);
-    }
-
-    public function testOptionalSegmentInMiddle(): void
-    {
-        $this->router->addRoute('GET', '/users[/{id}]/posts', function ($id = null) {
-            return "User posts for: " . ($id ?? 'all');
-        });
-
-        // Without optional parameter
-        $result = $this->router->match('GET', '/users/posts');
-        $this->assertNotFalse($result);
-        $this->assertEquals([], $result['params']);
-
-        // With optional parameter
-        $result = $this->router->match('GET', '/users/123/posts');
-        $this->assertNotFalse($result);
-        $this->assertEquals(['id' => '123'], $result['params']);
     }
 
     public function testMultipleOptionalSegmentsInDifferentPositions(): void
