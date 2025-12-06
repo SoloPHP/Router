@@ -3,6 +3,7 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/solophp/router.svg)](https://packagist.org/packages/solophp/router)
 [![License](https://img.shields.io/packagist/l/solophp/router.svg)](https://github.com/solophp/router/blob/main/LICENSE)
 [![PHP Version](https://img.shields.io/packagist/php-v/solophp/router.svg)](https://packagist.org/packages/solophp/router)
+[![Code Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/solophp/router)
 
 A high-performance PHP router with middleware support, route groups, named routes, and advanced optional segment patterns.
 
