@@ -7,21 +7,65 @@ namespace Solo\Router;
 use Solo\Router\Enums\HttpMethod;
 
 /**
- * Immutable data transfer object representing a single route definition.
+ * Route definition with fluent configuration API.
  */
 final class Route
 {
+    /** @var array<int, callable|string> */
+    private array $middlewares;
+    private ?string $name;
+
     /**
      * @param callable|array{class-string, string}|string $handler
-     * @param array<int, callable> $middlewares
+     * @param array<int, callable|string> $middlewares
      */
     public function __construct(
         public readonly HttpMethod $method,
         public readonly string $group,
         public readonly string $path,
         public readonly mixed $handler,
-        public readonly array $middlewares,
-        public readonly ?string $name
+        array $middlewares = [],
+        ?string $name = null
     ) {
+        $this->middlewares = $middlewares;
+        $this->name = $name;
+    }
+
+    /**
+     * Set the route name.
+     */
+    public function name(string $name): self
+    {
+        $this->name = $name;
+        return $this;
+    }
+
+    /**
+     * Add middleware(s) to the route.
+     *
+     * @param callable|string ...$middlewares
+     */
+    public function middleware(callable|string ...$middlewares): self
+    {
+        $this->middlewares = array_values([...$this->middlewares, ...$middlewares]);
+        return $this;
+    }
+
+    /**
+     * Get the route name.
+     */
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get all middlewares.
+     *
+     * @return array<int, callable|string>
+     */
+    public function getMiddlewares(): array
+    {
+        return $this->middlewares;
     }
 }

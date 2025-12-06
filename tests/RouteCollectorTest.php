@@ -70,25 +70,52 @@ class RouteCollectorTest extends TestCase
     {
         $this->collector->get('/users/{id}', function ($id) {
             return "User: $id";
-        }, [], 'user.show');
+        })->name('user.show');
+
+        $route = $this->collector->getRouteByName('user.show');
+        $this->assertNotNull($route);
+        $this->assertEquals('user.show', $route->getName());
 
         $match = $this->collector->match('GET', '/users/5');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '5'], $match['params']);
     }
 
+    public function testFluentMiddleware(): void
+    {
+        $authMiddleware = fn() => 'auth';
+        $logMiddleware = fn() => 'log';
+
+        $this->collector->get('/admin', function () {
+            return 'Admin';
+        })->name('admin')->middleware($authMiddleware, $logMiddleware);
+
+        $match = $this->collector->match('GET', '/admin');
+        $this->assertNotFalse($match);
+        $this->assertCount(2, $match['middlewares']);
+        $this->assertContains($authMiddleware, $match['middlewares']);
+        $this->assertContains($logMiddleware, $match['middlewares']);
+
+        $route = $this->collector->getRouteByName('admin');
+        $this->assertNotNull($route);
+        $this->assertEquals('admin', $route->getName());
+    }
+
     public function testNamedRouteWithDuplicateName(): void
     {
         $this->collector->get('/users/{id}', function ($id) {
             return "User: $id";
-        }, [], 'user.show');
+        })->name('user.show');
+
+        $this->collector->get('/users', function () {
+            return "Users list";
+        })->name('user.show');
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Route with name 'user.show' already exists");
 
-        $this->collector->get('/users', function () {
-            return "Users list";
-        }, [], 'user.show');
+        // Exception is thrown lazily when building name index
+        $this->collector->getRouteByName('user.show');
     }
 
     public function testRouteGroup(): void

@@ -451,4 +451,119 @@ class RouterTest extends TestCase
         $this->router->addRoute('GET', '/users/{id}]', fn() => '');
         $this->router->match('GET', '/users/123');
     }
+
+    public function testConstructorWithRoutes(): void
+    {
+        $route = new \Solo\Router\Route(
+            method: \Solo\Router\Enums\HttpMethod::GET,
+            group: '',
+            path: '/test',
+            handler: fn() => 'test'
+        );
+
+        $router = new Router([$route]);
+
+        $routes = $router->getRoutes();
+        $this->assertCount(1, $routes);
+        $this->assertSame($route, $routes[0]);
+
+        $match = $router->match('GET', '/test');
+        $this->assertNotFalse($match);
+    }
+
+    public function testStaticRouteMatch(): void
+    {
+        // Static routes use O(1) hash lookup
+        $this->router->addRoute('GET', '/static/path', fn() => 'static');
+
+        $match1 = $this->router->match('GET', '/static/path');
+        $this->assertNotFalse($match1);
+
+        // Second call should hit the static route cache
+        $match2 = $this->router->match('GET', '/static/path');
+        $this->assertNotFalse($match2);
+        $this->assertEquals($match1, $match2);
+    }
+
+    public function testDynamicRouteCacheInMatcher(): void
+    {
+        // Dynamic routes with no params get cached in RouteMatcher
+        $this->router->addRoute('GET', '/users[/]', fn() => 'users');
+
+        // First match
+        $match1 = $this->router->match('GET', '/users');
+        $this->assertNotFalse($match1);
+
+        // Second match - should hit RouteMatcher's static cache
+        $match2 = $this->router->match('GET', '/users');
+        $this->assertNotFalse($match2);
+    }
+
+    public function testGetRouteByNameNotFound(): void
+    {
+        $this->router->addRoute('GET', '/test', fn() => 'test');
+
+        $route = $this->router->getRouteByName('nonexistent');
+        $this->assertNull($route);
+    }
+
+    public function testNameIndexCacheInvalidation(): void
+    {
+        $this->router->addRoute('GET', '/first', fn() => 'first')->name('first');
+
+        // Build index
+        $route1 = $this->router->getRouteByName('first');
+        $this->assertNotNull($route1);
+
+        // Add another route - should invalidate index
+        $this->router->addRoute('GET', '/second', fn() => 'second')->name('second');
+
+        // Index rebuilt
+        $route2 = $this->router->getRouteByName('second');
+        $this->assertNotNull($route2);
+    }
+
+    public function testNameIndexCacheHit(): void
+    {
+        $this->router->addRoute('GET', '/test', fn() => 'test')->name('test.route');
+
+        // First call builds the index
+        $route1 = $this->router->getRouteByName('test.route');
+        $this->assertNotNull($route1);
+
+        // Second call should use cached index (early return in buildNameIndex)
+        $route2 = $this->router->getRouteByName('test.route');
+        $this->assertSame($route1, $route2);
+    }
+
+    public function testPatternWithCaptureGroup(): void
+    {
+        // Pattern with regular capture group () not (?:)
+        $this->router->addRoute('GET', '/{path:(foo|bar)/baz}', fn($path) => $path);
+
+        $match = $this->router->match('GET', '/foo/baz');
+        $this->assertNotFalse($match);
+        $this->assertEquals(['path' => 'foo/baz'], $match['params']);
+
+        $match = $this->router->match('GET', '/bar/baz');
+        $this->assertNotFalse($match);
+        $this->assertEquals(['path' => 'bar/baz'], $match['params']);
+    }
+
+    public function testPatternWithTopLevelGroup(): void
+    {
+        // Pattern with top-level group (not inside parameter or ?:)
+        // This exercises the escapePattern branch for regular ( at depth 0
+        $this->router->addRoute('GET', '/(admin|user)/profile', fn() => 'profile');
+
+        $match = $this->router->match('GET', '/admin/profile');
+        $this->assertNotFalse($match);
+
+        $match = $this->router->match('GET', '/user/profile');
+        $this->assertNotFalse($match);
+
+        // Should not match other paths
+        $match = $this->router->match('GET', '/guest/profile');
+        $this->assertFalse($match);
+    }
 }

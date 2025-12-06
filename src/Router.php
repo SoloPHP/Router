@@ -11,7 +11,7 @@ use Solo\Router\Enums\HttpMethod;
 
 /**
  * High-performance router with optimized route matching.
-*/
+ */
 class Router implements RouterInterface
 {
     /** @var array<string, Route> */
@@ -23,8 +23,8 @@ class Router implements RouterInterface
     /** @var Route[] */
     private array $routes = [];
 
-    /** @var array<string, int> */
-    private array $routeNameIndex = [];
+    /** @var array<string, Route>|null */
+    private ?array $routeNameIndex = null;
 
     /**
      * Regex matcher for dynamic and complex routes.
@@ -51,47 +51,39 @@ class Router implements RouterInterface
      * @param string $method HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param string $path Route path pattern
      * @param mixed $handler Route handler (callable, controller, etc.)
-     * @param array{group?: string, middlewares?: array<int, callable>, name?: string|null} $options
-     * @throws InvalidArgumentException If method is invalid or route name already exists
+     * @param array{group?: string, middlewares?: array<int, callable|string>, name?: string|null} $options
+     * @throws InvalidArgumentException If method is invalid
      */
     public function addRoute(
         string $method,
         string $path,
         mixed $handler,
         array $options = []
-    ): void {
-        $method = HttpMethod::tryFrom(strtoupper($method))
+    ): Route {
+        $httpMethod = HttpMethod::tryFrom(strtoupper($method))
             ?? throw new InvalidArgumentException("Unsupported HTTP method: $method");
 
-        $name = $options['name'] ?? null;
-        if ($name && array_key_exists($name, $this->routeNameIndex)) {
-            throw new InvalidArgumentException("Route with name '$name' already exists");
-        }
-
         $route = new Route(
-            method: $method,
+            method: $httpMethod,
             group: $options['group'] ?? '',
             path: $path,
             handler: $handler,
             middlewares: $options['middlewares'] ?? [],
-            name: $name
+            name: $options['name'] ?? null
         );
 
         $this->addRouteObject($route);
+
+        return $route;
     }
 
     /**
      * Add a Route object to the router.
-     *
-     * @param Route $route
      */
     private function addRouteObject(Route $route): void
     {
         $this->routes[] = $route;
-
-        if ($route->name !== null) {
-            $this->routeNameIndex[$route->name] = count($this->routes) - 1;
-        }
+        $this->routeNameIndex = null; // Invalidate name index
 
         $method = $route->method->value;
         $fullPath = $route->group . $route->path;
@@ -113,14 +105,13 @@ class Router implements RouterInterface
     }
 
     /**
-     * Check if route is static (no parameters or optional segments).
-     *
-     * @param string $path
-     * @return bool
+     * Check if route is static (no parameters, optional segments, or regex groups).
      */
     private function isStaticRoute(string $path): bool
     {
-        return !str_contains($path, '{') && !str_contains($path, '[');
+        return !str_contains($path, '{')
+            && !str_contains($path, '[')
+            && !str_contains($path, '(');
     }
 
     /**
@@ -131,7 +122,7 @@ class Router implements RouterInterface
      * @return array{
      *     handler: callable|array{class-string, string}|string,
      *     params: array<string, string>,
-     *     middlewares: array<int, callable>
+     *     middlewares: array<int, callable|string>
      * }|false
      */
     public function match(string $method, string $uri): array|false
@@ -145,7 +136,7 @@ class Router implements RouterInterface
             return [
                 'handler' => $route->handler,
                 'params' => [],
-                'middlewares' => $route->middlewares,
+                'middlewares' => $route->getMiddlewares(),
             ];
         }
 
@@ -174,12 +165,33 @@ class Router implements RouterInterface
      * Get a route by its name.
      *
      * @param string $name Route name
-     * @return Route|null
      */
     public function getRouteByName(string $name): ?Route
     {
-        return isset($this->routeNameIndex[$name])
-            ? $this->routes[$this->routeNameIndex[$name]]
-            : null;
+        $this->buildNameIndex();
+        return $this->routeNameIndex[$name] ?? null;
+    }
+
+    /**
+     * Build name index lazily.
+     *
+     * @throws InvalidArgumentException If duplicate route names exist
+     */
+    private function buildNameIndex(): void
+    {
+        if ($this->routeNameIndex !== null) {
+            return;
+        }
+
+        $this->routeNameIndex = [];
+        foreach ($this->routes as $route) {
+            $name = $route->getName();
+            if ($name !== null) {
+                if (isset($this->routeNameIndex[$name])) {
+                    throw new InvalidArgumentException("Route with name '$name' already exists");
+                }
+                $this->routeNameIndex[$name] = $route;
+            }
+        }
     }
 }
