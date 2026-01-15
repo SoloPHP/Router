@@ -33,7 +33,7 @@ $router->group('/admin', function(RouteCollector $router) {
 
 ## Middleware Execution Order
 
-1. **Group middleware** (outermost group first)
+1. **Group middleware** (innermost group first)
 2. **Route middleware** (in order added)
 
 ```php
@@ -44,7 +44,7 @@ $router->group('/api', function($router) {
     }, [AdminMiddleware::class]);
 }, [ApiMiddleware::class]);
 
-// Order: ApiMiddleware → AdminMiddleware → CacheMiddleware
+// Order: AdminMiddleware → ApiMiddleware → CacheMiddleware
 ```
 
 ---
