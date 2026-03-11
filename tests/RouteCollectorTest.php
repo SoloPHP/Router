@@ -69,6 +69,7 @@ class RouteCollectorTest extends TestCase
         $match = $this->collector->match('GET', '/users/5');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '5'], $match['params']);
+        $this->assertEquals('user.show', $match['name']);
     }
 
     public function testFluentMiddleware(): void

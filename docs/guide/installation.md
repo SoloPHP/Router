@@ -46,6 +46,7 @@ if ($match) {
     $handler = $match['handler'];
     $params = $match['params'];
     $middlewares = $match['middlewares'];
+    $name = $match['name'];
 } else {
     // 404 Not Found
     http_response_code(404);

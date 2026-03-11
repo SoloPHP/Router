@@ -39,6 +39,7 @@ if ($match) {
     $handler = $match['handler'];     // [UserController::class, 'show']
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
+    $name = $match['name'];           // route name or null
 } else {
     // No matching route found
 }

@@ -56,6 +56,8 @@ class RouterTest extends TestCase
 
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '123'], $match['params']);
+        $this->assertArrayHasKey('name', $match);
+        $this->assertEquals('users.show', $match['name']);
     }
 
     public function testMatchRouteNotFound(): void
@@ -408,6 +410,39 @@ class RouterTest extends TestCase
 
         $match = $router->match('GET', '/test');
         $this->assertNotFalse($match);
+    }
+
+    public function testMatchReturnsNameForStaticRoute(): void
+    {
+        $this->router->addRoute('GET', '/dashboard', fn() => 'dashboard', [
+            'name' => 'dashboard',
+        ]);
+
+        $match = $this->router->match('GET', '/dashboard');
+        $this->assertNotFalse($match);
+        $this->assertArrayHasKey('name', $match);
+        $this->assertEquals('dashboard', $match['name']);
+    }
+
+    public function testMatchReturnsNullNameWhenNotSet(): void
+    {
+        $this->router->addRoute('GET', '/no-name', fn() => 'test');
+
+        $match = $this->router->match('GET', '/no-name');
+        $this->assertNotFalse($match);
+        $this->assertArrayHasKey('name', $match);
+        $this->assertNull($match['name']);
+    }
+
+    public function testMatchReturnsNameForDynamicRoute(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn($id) => "User $id", [
+            'name' => 'users.show',
+        ]);
+
+        $match = $this->router->match('GET', '/users/42');
+        $this->assertNotFalse($match);
+        $this->assertEquals('users.show', $match['name']);
     }
 
     public function testStaticRouteMatch(): void

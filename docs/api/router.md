@@ -98,6 +98,7 @@ On match:
     'handler' => callable|array|string,  // Route handler
     'params' => array<string, string>,   // Captured parameters
     'middlewares' => array,              // Route middleware
+    'name' => string|null,              // Route name
 ]
 ```
 
@@ -112,6 +113,7 @@ if ($match !== false) {
     $handler = $match['handler'];     // [UserController::class, 'show']
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
+    $name = $match['name'];           // 'users.show' or null
 } else {
     // 404 Not Found
 }

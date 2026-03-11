@@ -119,7 +119,8 @@ class Router implements RouterInterface
      * @return array{
      *     handler: callable|array{class-string, string}|string,
      *     params: array<string, string>,
-     *     middlewares: array<int, callable|string>
+     *     middlewares: array<int, callable|string>,
+     *     name: string|null
      * }|false
      */
     public function match(string $method, string $uri): array|false
@@ -134,6 +135,7 @@ class Router implements RouterInterface
                 'handler' => $route->handler,
                 'params' => [],
                 'middlewares' => $route->getMiddlewares(),
+                'name' => $route->getName(),
             ];
         }
 

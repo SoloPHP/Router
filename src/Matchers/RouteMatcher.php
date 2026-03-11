@@ -12,7 +12,14 @@ final class RouteMatcher
     private readonly PatternCompiler $compiler;
     /** @var array<string, string> */
     private array $compiledPatterns = [];
-    /** @var array<string, array<string, array{handler: mixed, params: array<string, string>, middlewares: array<int, callable|string>}>> */
+    /**
+     * @var array<string, array<string, array{
+     *     handler: mixed,
+     *     params: array<string, string>,
+     *     middlewares: array<int, callable|string>,
+     *     name: string|null
+     * }>>
+     */
     private array $staticRoutes = [];
     /** @var array<string, Route[]> */
     private array $routesByMethod = [];
@@ -25,7 +32,12 @@ final class RouteMatcher
 
     /**
      * @param Route[] $routes
-     * @return array{handler: mixed, params: array<string, string>, middlewares: array<int, callable|string>}|null
+     * @return array{
+     *     handler: mixed,
+     *     params: array<string, string>,
+     *     middlewares: array<int, callable|string>,
+     *     name: string|null
+     * }|null
      */
     public function match(array $routes, string $method, string $uri): ?array
     {
@@ -65,6 +77,7 @@ final class RouteMatcher
                     'handler' => $route->handler,
                     'params' => $params,
                     'middlewares' => $route->getMiddlewares(),
+                    'name' => $route->getName(),
                 ];
 
                 // Cache static routes for future lookups

@@ -79,6 +79,7 @@ if ($match) {
     $handler = $match['handler'];
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
+    $name = $match['name'];           // route name or null
 }
 ```
 
