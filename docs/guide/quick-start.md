@@ -16,6 +16,10 @@ $router->patch('/users/{id}', [UserController::class, 'patch']);
 $router->delete('/users/{id}', [UserController::class, 'destroy']);
 ```
 
+::: tip HEAD Requests
+HEAD requests automatically match GET routes per RFC 7231 — no extra configuration needed. Use `$router->head()` only if you need a dedicated HEAD handler.
+:::
+
 ## Route Parameters
 
 Capture dynamic segments with curly braces:

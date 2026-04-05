@@ -127,23 +127,27 @@ class Router implements RouterInterface
     {
         $method = strtoupper($method);
 
-        // 1. Try static route first (fastest - O(1))
-        $key = $method . ':' . $uri;
-        if (isset($this->staticRoutes[$key])) {
-            $route = $this->staticRoutes[$key];
-            return [
-                'handler' => $route->handler,
-                'params' => [],
-                'middlewares' => $route->getMiddlewares(),
-                'name' => $route->getName(),
-            ];
-        }
+        // HEAD falls back to GET if no explicit HEAD route exists (RFC 7231)
+        $methods = ($method === 'HEAD') ? ['HEAD', 'GET'] : [$method];
 
-        // 2. Try dynamic routes (grouped by method)
-        if (isset($this->dynamicRoutes[$method])) {
-            $result = $this->regexMatcher->match($this->dynamicRoutes[$method], $method, $uri);
-            if ($result !== null) {
-                return $result;
+        foreach ($methods as $m) {
+            // 1. Try static route first (fastest - O(1))
+            if (isset($this->staticRoutes[$m . ':' . $uri])) {
+                $route = $this->staticRoutes[$m . ':' . $uri];
+                return [
+                    'handler' => $route->handler,
+                    'params' => [],
+                    'middlewares' => $route->getMiddlewares(),
+                    'name' => $route->getName(),
+                ];
+            }
+
+            // 2. Try dynamic routes (grouped by method)
+            if (isset($this->dynamicRoutes[$m])) {
+                $result = $this->regexMatcher->match($this->dynamicRoutes[$m], $m, $uri);
+                if ($result !== null) {
+                    return $result;
+                }
             }
         }
 

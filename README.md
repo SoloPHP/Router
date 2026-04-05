@@ -14,6 +14,7 @@ High-performance PHP router with middleware support, route groups, named routes,
 - **Middleware** — Single and multiple middleware per route/group
 - **Advanced Patterns** — Optional segments anywhere, nested optionals, regex constraints
 - **Named Routes** — Easy route referencing for URL generation
+- **HEAD Support** — Automatic fallback to GET routes per RFC 7231
 
 ## Installation
 

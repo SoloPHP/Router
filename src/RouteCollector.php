@@ -25,6 +25,16 @@ final class RouteCollector extends Router
     }
 
     /**
+     * Adds a HEAD route.
+     *
+     * @param callable|array{class-string, string}|class-string $handler
+     */
+    public function head(string $path, callable|array|string $handler): Route
+    {
+        return $this->addHttpRoute('HEAD', $path, $handler);
+    }
+
+    /**
      * Adds a POST route.
      *
      * @param callable|array{class-string, string}|class-string $handler

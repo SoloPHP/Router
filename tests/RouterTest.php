@@ -524,6 +524,50 @@ class RouterTest extends TestCase
         $this->assertEquals(['path' => 'bar/baz'], $match['params']);
     }
 
+    public function testHeadFallbackToGetForStaticRoute(): void
+    {
+        $this->router->addRoute('GET', '/login', fn() => 'login page', [
+            'name' => 'login',
+        ]);
+
+        $match = $this->router->match('HEAD', '/login');
+        $this->assertNotFalse($match);
+        $this->assertEquals('login', $match['name']);
+        $this->assertEquals([], $match['params']);
+    }
+
+    public function testHeadFallbackToGetForDynamicRoute(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn($id) => "User $id", [
+            'name' => 'users.show',
+        ]);
+
+        $match = $this->router->match('HEAD', '/users/42');
+        $this->assertNotFalse($match);
+        $this->assertEquals('users.show', $match['name']);
+        $this->assertEquals(['id' => '42'], $match['params']);
+    }
+
+    public function testHeadUsesExplicitHeadRouteOverGetFallback(): void
+    {
+        $this->router->addRoute('GET', '/status', fn() => 'get status');
+        $this->router->addRoute('HEAD', '/status', fn() => 'head status', [
+            'name' => 'status.head',
+        ]);
+
+        $match = $this->router->match('HEAD', '/status');
+        $this->assertNotFalse($match);
+        $this->assertEquals('status.head', $match['name']);
+    }
+
+    public function testHeadReturns404WhenNoGetRoute(): void
+    {
+        $this->router->addRoute('POST', '/webhook', fn() => 'ok');
+
+        $result = $this->router->match('HEAD', '/webhook');
+        $this->assertFalse($result);
+    }
+
     public function testPatternWithTopLevelGroup(): void
     {
         // Pattern with top-level group (not inside parameter or ?:)

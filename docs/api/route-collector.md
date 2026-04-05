@@ -23,6 +23,19 @@ $router->get('/users', [UserController::class, 'index']);
 $router->get('/users/{id}', [UserController::class, 'show']);
 ```
 
+### head()
+
+```php
+public function head(string $path, callable|array|string $handler): Route
+```
+
+Register a HEAD route. Usually not needed — HEAD requests automatically fall back to GET routes per RFC 7231.
+
+```php
+// Explicit HEAD route (optional — GET routes handle HEAD automatically)
+$router->head('/status', [StatusController::class, 'head']);
+```
+
 ### post()
 
 ```php

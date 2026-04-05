@@ -35,6 +35,9 @@ features:
   - icon: 🏷️
     title: Named Routes
     details: Easy route referencing by name for URL generation.
+  - icon: 📡
+    title: HEAD Support
+    details: Automatic fallback to GET routes for HEAD requests per RFC 7231.
 ---
 
 <style>

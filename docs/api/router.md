@@ -46,7 +46,7 @@ Add a new route to the router.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `$method` | `string` | HTTP method (GET, POST, PUT, PATCH, DELETE) |
+| `$method` | `string` | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE) |
 | `$path` | `string` | Route path pattern |
 | `$handler` | `mixed` | Route handler |
 | `$options` | `array` | Optional settings |
@@ -103,6 +103,10 @@ On match:
 ```
 
 On no match: `false`
+
+::: tip HEAD Fallback
+Per RFC 7231, if no explicit `HEAD` route is registered, `match()` automatically falls back to the matching `GET` route. This ensures `curl -I` and monitoring tools work without registering separate HEAD routes.
+:::
 
 **Example:**
 
