@@ -109,7 +109,7 @@ final class RouteCollector extends Router
         $previousMiddleware = $this->groupMiddleware;
 
         $this->group = $previousGroup . $prefix;
-        $this->groupMiddleware = [...$middlewares, ...$previousMiddleware];
+        $this->groupMiddleware = [...$previousMiddleware, ...$middlewares];
 
         $callback($this);
 

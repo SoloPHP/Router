@@ -71,10 +71,10 @@ $router->group('/api', function(RouteCollector $router) {
     
 }, [ApiMiddleware::class, RateLimitMiddleware::class]);
 
-// /api/admin/stats has:
-// - AdminMiddleware
-// - ApiMiddleware  
+// /api/admin/stats has, in execution order (outermost first):
+// - ApiMiddleware
 // - RateLimitMiddleware
+// - AdminMiddleware
 ```
 
 ---

@@ -26,6 +26,13 @@ class RouteCollectorTest extends TestCase
         $this->assertNotFalse($match);
     }
 
+    public function testHeadRoute(): void
+    {
+        $this->collector->head('/health', fn() => '');
+        $match = $this->collector->match('HEAD', '/health');
+        $this->assertNotFalse($match);
+    }
+
     public function testPutRoute(): void
     {
         $this->collector->put('/users/{id}', function ($id) {
@@ -139,6 +146,47 @@ class RouteCollectorTest extends TestCase
         $match = $this->collector->match('GET', '/api/v1/users/123');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '123'], $match['params']);
+    }
+
+    public function testNestedGroupMiddlewareCanonicalOrder(): void
+    {
+        $outer = fn() => 'outer';
+        $inner = fn() => 'inner';
+        $route = fn() => 'route';
+
+        $this->collector->group('/api', function ($router) use ($inner, $route) {
+            $router->group('/v1', function ($router) use ($route) {
+                $router->get('/ping', fn() => 'pong')->middleware($route);
+            }, [$inner]);
+        }, [$outer]);
+
+        $match = $this->collector->match('GET', '/api/v1/ping');
+        $this->assertNotFalse($match);
+        $this->assertSame(
+            [$outer, $inner, $route],
+            $match['middlewares'],
+            'Outer group middleware must precede inner group middleware, route middleware last'
+        );
+    }
+
+    public function testGroupMiddlewareDoesNotLeakAcrossSiblings(): void
+    {
+        $a = fn() => 'a';
+        $b = fn() => 'b';
+
+        $this->collector->group('/a', function ($router) {
+            $router->get('/x', fn() => 'x');
+        }, [$a]);
+
+        $this->collector->group('/b', function ($router) {
+            $router->get('/y', fn() => 'y');
+        }, [$b]);
+
+        $matchA = $this->collector->match('GET', '/a/x');
+        $matchB = $this->collector->match('GET', '/b/y');
+
+        $this->assertSame([$a], $matchA['middlewares']);
+        $this->assertSame([$b], $matchB['middlewares']);
     }
 
     public function testOptionalLanguagePrefixWithSingleGroup(): void
