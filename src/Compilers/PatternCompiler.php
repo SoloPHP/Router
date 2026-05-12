@@ -18,7 +18,6 @@ final class PatternCompiler
     {
         $this->parameters = [];
 
-        // Optimized compilation process
         $pattern = $this->extractParameters($path);
         $pattern = $this->processOptionalSegments($pattern);
         $pattern = $this->restoreParameters($pattern);
@@ -29,7 +28,7 @@ final class PatternCompiler
 
     private function extractParameters(string $path): string
     {
-        return preg_replace_callback(
+        $result = preg_replace_callback(
             '/{(\w+)(?::([^{}]*(?:{[^}]*}[^{}]*)*))?}/',
             function ($m) {
                 $placeholder = sprintf(self::PARAM_PLACEHOLDER, count($this->parameters));
@@ -40,7 +39,9 @@ final class PatternCompiler
                 return $placeholder;
             },
             $path
-        ) ?? $path;
+        );
+
+        return $result ?? $path;
     }
 
     private function processOptionalSegments(string $pattern): string

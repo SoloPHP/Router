@@ -11,10 +11,6 @@ use Solo\Router\Enums\HttpMethod;
  */
 final class Route
 {
-    /** @var array<int, callable|string> */
-    private array $middlewares;
-    private ?string $name;
-
     /**
      * @param callable|array{class-string, string}|string $handler
      * @param array<int, callable|string> $middlewares
@@ -24,16 +20,11 @@ final class Route
         public readonly string $group,
         public readonly string $path,
         public readonly mixed $handler,
-        array $middlewares = [],
-        ?string $name = null
+        private array $middlewares = [],
+        private ?string $name = null
     ) {
-        $this->middlewares = $middlewares;
-        $this->name = $name;
     }
 
-    /**
-     * Set the route name.
-     */
     public function name(string $name): self
     {
         $this->name = $name;
@@ -41,8 +32,6 @@ final class Route
     }
 
     /**
-     * Add middleware(s) to the route.
-     *
      * @param callable|string ...$middlewares
      */
     public function middleware(callable|string ...$middlewares): self
@@ -51,17 +40,12 @@ final class Route
         return $this;
     }
 
-    /**
-     * Get the route name.
-     */
     public function getName(): ?string
     {
         return $this->name;
     }
 
     /**
-     * Get all middlewares.
-     *
      * @return array<int, callable|string>
      */
     public function getMiddlewares(): array

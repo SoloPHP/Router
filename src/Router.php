@@ -83,21 +83,15 @@ class Router implements RouterInterface
     private function addRouteObject(Route $route): void
     {
         $this->routes[] = $route;
-        $this->routeNameIndex = null; // Invalidate name index
+        $this->routeNameIndex = null;
 
         $method = $route->method->value;
         $fullPath = $route->group . $route->path;
 
-        // Categorize route for optimized matching
         if ($this->isStaticRoute($fullPath)) {
-            // Static route - store in hash table for O(1) lookup
             $this->staticRoutes[$method . ':' . $fullPath] = $route;
         } else {
-            // Dynamic or complex route - group by method
             $this->dynamicRoutes[$method][] = $route;
-
-            // Clear regex matcher cache when adding dynamic routes
-            $this->regexMatcher->clearCache();
         }
     }
 
@@ -131,9 +125,9 @@ class Router implements RouterInterface
         $methods = ($method === 'HEAD') ? ['HEAD', 'GET'] : [$method];
 
         foreach ($methods as $m) {
-            // 1. Try static route first (fastest - O(1))
-            if (isset($this->staticRoutes[$m . ':' . $uri])) {
-                $route = $this->staticRoutes[$m . ':' . $uri];
+            $staticKey = $m . ':' . $uri;
+            if (isset($this->staticRoutes[$staticKey])) {
+                $route = $this->staticRoutes[$staticKey];
                 return [
                     'handler' => $route->handler,
                     'params' => [],
@@ -142,7 +136,6 @@ class Router implements RouterInterface
                 ];
             }
 
-            // 2. Try dynamic routes (grouped by method)
             if (isset($this->dynamicRoutes[$m])) {
                 $result = $this->regexMatcher->match($this->dynamicRoutes[$m], $m, $uri);
                 if ($result !== null) {
@@ -189,12 +182,13 @@ class Router implements RouterInterface
         $this->routeNameIndex = [];
         foreach ($this->routes as $route) {
             $name = $route->getName();
-            if ($name !== null) {
-                if (isset($this->routeNameIndex[$name])) {
-                    throw new InvalidArgumentException("Route with name '$name' already exists");
-                }
-                $this->routeNameIndex[$name] = $route;
+            if ($name === null) {
+                continue;
             }
+            if (isset($this->routeNameIndex[$name])) {
+                throw new InvalidArgumentException("Route with name '$name' already exists");
+            }
+            $this->routeNameIndex[$name] = $route;
         }
     }
 }
