@@ -124,33 +124,35 @@ $router->get('/{lang:[a-z]{2}}[/admin]/users[/{id:[0-9]+}[/edit]]', [UserControl
 
 ## Error Handling
 
-Unmatched brackets throw `InvalidArgumentException`:
+Invalid paths throw `InvalidArgumentException` when the route is registered:
 
 ```php
 // Missing closing bracket
 $router->get('/users[/{id}', fn() => '');
-// InvalidArgumentException: Unmatched opening bracket
+// InvalidArgumentException: Unmatched opening bracket(s) in: /users[/{id}
 
 // Extra closing bracket
 $router->get('/users/{id}]', fn() => '');
-// InvalidArgumentException: Unmatched closing bracket
+// InvalidArgumentException: Unmatched closing bracket at position 11 in: /users/{id}]
 ```
+
+Text inside optional segments is literal, like everywhere else in the path: `/users[.{format}]` matches `/users.json`, not `/usersXjson`.
 
 ---
 
 ## Best Practices
 
 ::: tip Order Matters
-More specific routes should be defined before generic ones:
+Static routes (no parameters or optional segments) always win over dynamic ones, so `/users/me` works in any order next to `/users/{id}`. Dynamic routes are tried in registration order, so define narrower patterns first:
 
 ```php
 // ✅ Good
-$router->get('/users/me', [UserController::class, 'me']);
-$router->get('/users/{id}', [UserController::class, 'show']);
+$router->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
+$router->get('/posts/{slug}', [PostController::class, 'show']);
 
-// ❌ Bad - /users/me will match {id}
-$router->get('/users/{id}', [UserController::class, 'show']);
-$router->get('/users/me', [UserController::class, 'me']);
+// ❌ Bad - /posts/2024 is matched by {slug}
+$router->get('/posts/{slug}', [PostController::class, 'show']);
+$router->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
 ```
 :::
 

@@ -19,7 +19,7 @@ hero:
 features:
   - icon: ⚡
     title: High Performance
-    details: Static routes use O(1) hash lookup. Pattern caching for compiled regex.
+    details: Static routes use O(1) hash lookup. Dynamic routes are prefiltered by their literal prefix.
   - icon: 🔗
     title: Fluent API
     details: Chainable ->name() and ->middleware() methods for clean route definitions.

@@ -84,6 +84,18 @@ Register a DELETE route.
 $router->delete('/users/{id}', [UserController::class, 'destroy']);
 ```
 
+### options()
+
+```php
+public function options(string $path, callable|array|string $handler): Route
+```
+
+Register an OPTIONS route, e.g. for CORS preflight requests.
+
+```php
+$router->options('/{any:.*}', [CorsController::class, 'preflight']);
+```
+
 ---
 
 ## group()

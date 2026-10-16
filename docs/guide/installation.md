@@ -47,6 +47,10 @@ if ($match) {
     $params = $match['params'];
     $middlewares = $match['middlewares'];
     $name = $match['name'];
+} elseif ($allowed = $router->getAllowedMethods($uri)) {
+    // 405 Method Not Allowed
+    http_response_code(405);
+    header('Allow: ' . implode(', ', $allowed));
 } else {
     // 404 Not Found
     http_response_code(404);
