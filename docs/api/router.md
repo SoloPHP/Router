@@ -58,6 +58,7 @@ Add a new route to the router.
 | `group` | `string` | `''` | URL prefix |
 | `middlewares` | `array` | `[]` | Middleware array |
 | `name` | `string\|null` | `null` | Route name |
+| `attributes` | `array` | `[]` | Custom [attributes](/features/attributes) |
 
 **Example:**
 
@@ -66,6 +67,7 @@ $router->addRoute('GET', '/users/{id}', [UserController::class, 'show'], [
     'group' => '/api',
     'middlewares' => [AuthMiddleware::class],
     'name' => 'users.show',
+    'attributes' => ['permission' => 'users.view'],
 ]);
 ```
 
@@ -74,6 +76,7 @@ $router->addRoute('GET', '/users/{id}', [UserController::class, 'show'], [
 - `InvalidArgumentException` — If HTTP method is not supported
 - `InvalidArgumentException` — If the path is invalid (unmatched brackets, invalid or duplicate parameter names)
 - `InvalidArgumentException` — If a route with the same method and full path, or with the same name, is already registered
+- `InvalidArgumentException` — If an attribute key is an integer or an integer string such as `'42'`
 
 ---
 
@@ -100,7 +103,8 @@ On match:
     'handler' => callable|array|string,  // Route handler
     'params' => array<string, string>,   // Captured parameters
     'middlewares' => array,              // Route middleware
-    'name' => string|null,              // Route name
+    'name' => string|null,               // Route name
+    'attributes' => array<string, mixed>, // Custom attributes, [] if none
 ]
 ```
 
@@ -126,6 +130,7 @@ if ($match !== false) {
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
     $name = $match['name'];           // 'users.show' or null
+    $attributes = $match['attributes']; // ['permission' => 'users.view'] or []
 } else {
     // 404 Not Found
 }

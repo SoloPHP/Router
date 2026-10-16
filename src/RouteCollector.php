@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Solo\Router;
 
+use InvalidArgumentException;
 use Solo\Router\Enums\HttpMethod;
 
 /**
@@ -15,6 +16,9 @@ final class RouteCollector extends Router
 
     /** @var array<int, callable|string> */
     private array $groupMiddleware = [];
+
+    /** @var array<string, mixed> */
+    private array $groupAttributes = [];
 
     /**
      * Adds a GET route.
@@ -101,31 +105,48 @@ final class RouteCollector extends Router
             group: $this->group,
             path: $path,
             handler: $handler,
-            middlewares: $this->groupMiddleware
+            middlewares: $this->groupMiddleware,
+            attributes: $this->groupAttributes
         ));
     }
 
     /**
-     * Creates a route group with prefix and middleware.
+     * Creates a route group with prefix, middleware and attributes.
+     *
+     * Middleware accumulates from outer to inner groups. Attributes do not: an inner group
+     * or the route itself replaces the value for the same key.
      *
      * @param array<int, callable|string> $middlewares
+     * @param array<string, mixed> $attributes
+     * @throws InvalidArgumentException If middleware has string keys or attributes have integer keys,
+     *                                  e.g. when the two arrays are passed in each other's place
      */
     public function group(
         string $prefix,
         callable $callback,
-        array $middlewares = []
+        array $middlewares = [],
+        array $attributes = []
     ): void {
-        $previousGroup = $this->group;
-        $previousMiddleware = $this->groupMiddleware;
+        foreach (array_keys($middlewares) as $key) {
+            // @phpstan-ignore function.impossibleType (runtime guard: attributes passed in the middleware slot)
+            if (is_string($key)) {
+                throw new InvalidArgumentException(
+                    "Group '$prefix' middleware has key '$key'; pass attributes as the fourth argument"
+                );
+            }
+        }
+        Route::assertAttributeKeys($attributes);
 
-        $this->group = $previousGroup . $prefix;
-        $this->groupMiddleware = [...$previousMiddleware, ...$middlewares];
+        $saved = [$this->group, $this->groupMiddleware, $this->groupAttributes];
+
+        $this->group .= $prefix;
+        $this->groupMiddleware = [...$this->groupMiddleware, ...$middlewares];
+        $this->groupAttributes = array_replace($this->groupAttributes, $attributes);
 
         try {
             $callback($this);
         } finally {
-            $this->group = $previousGroup;
-            $this->groupMiddleware = $previousMiddleware;
+            [$this->group, $this->groupMiddleware, $this->groupAttributes] = $saved;
         }
     }
 }

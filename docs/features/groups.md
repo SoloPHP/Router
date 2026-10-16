@@ -1,6 +1,6 @@
 # Route Groups
 
-Groups share prefixes and middleware across multiple routes.
+Groups share prefixes, middleware and attributes across multiple routes.
 
 ## Basic Groups
 
@@ -29,6 +29,23 @@ $router->group('/admin', function(RouteCollector $router) {
 
 // All routes have AuthMiddleware and AdminMiddleware
 ```
+
+## Groups with Attributes
+
+Pass [attributes](/features/attributes) as the fourth parameter, or by name:
+
+```php
+$router->group('/billing', function(RouteCollector $router) {
+    $router->get('/invoices', [InvoiceController::class, 'index']);
+    $router->get('/plans', [PlanController::class, 'index'])
+        ->attribute('permission', 'billing.view');
+}, attributes: ['permission' => 'billing.manage']);
+
+// /billing/invoices has ['permission' => 'billing.manage']
+// /billing/plans has ['permission' => 'billing.view']
+```
+
+Unlike middleware, attributes don't accumulate: an inner group or the route itself replaces the value for the same key. See [Inheritance Rules](/features/attributes#inheritance-rules).
 
 ---
 

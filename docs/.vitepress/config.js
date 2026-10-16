@@ -20,7 +20,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/installation' },
       { text: 'Features', link: '/features/parameters' },
       { text: 'API', link: '/api/route-collector' },
-      { text: 'v3.3.0', link: 'https://github.com/solophp/router/releases' },
+      { text: 'v3.4.0', link: 'https://github.com/solophp/router/releases' },
       {
         text: 'Links',
         items: [
@@ -47,7 +47,8 @@ export default defineConfig({
           { text: 'Optional Segments', link: '/features/optional-segments' },
           { text: 'Route Groups', link: '/features/groups' },
           { text: 'Middleware', link: '/features/middleware' },
-          { text: 'Named Routes', link: '/features/named-routes' }
+          { text: 'Named Routes', link: '/features/named-routes' },
+          { text: 'Route Attributes', link: '/features/attributes' }
         ]
       },
       {

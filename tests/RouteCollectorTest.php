@@ -106,6 +106,18 @@ class RouteCollectorTest extends TestCase
         $this->assertEquals('admin', $route->getName());
     }
 
+    public function testFluentAttribute(): void
+    {
+        $this->collector->get('/reports', 'reports')
+            ->name('reports')
+            ->attribute('permission', 'reports.view')
+            ->attribute('plan', 'pro');
+
+        $match = $this->collector->match('GET', '/reports');
+        $this->assertNotFalse($match);
+        $this->assertSame(['permission' => 'reports.view', 'plan' => 'pro'], $match['attributes']);
+    }
+
     public function testNamedRouteWithDuplicateName(): void
     {
         $this->collector->get('/users/{id}', function ($id) {
@@ -180,7 +192,7 @@ class RouteCollectorTest extends TestCase
 
         $this->collector->group('/a', function ($router) {
             $router->get('/x', fn() => 'x');
-        }, [$a]);
+        }, [$a], ['permission' => 'a']);
 
         $this->collector->group('/b', function ($router) {
             $router->get('/y', fn() => 'y');
@@ -191,6 +203,66 @@ class RouteCollectorTest extends TestCase
 
         $this->assertSame([$a], $matchA['middlewares']);
         $this->assertSame([$b], $matchB['middlewares']);
+        $this->assertSame(['permission' => 'a'], $matchA['attributes']);
+        $this->assertSame([], $matchB['attributes']);
+    }
+
+    public function testNestedGroupAndRouteAttributesOverrideByKey(): void
+    {
+        $this->collector->group('/admin', function (RouteCollector $router): void {
+            $router->get('/users', 'users');
+
+            $router->group('/reports', function (RouteCollector $router): void {
+                $router->get('/daily', 'daily');
+                $router->get('/export', 'export')->attribute('plan', 'pro');
+            }, attributes: ['permission' => 'reports.view', 'tags' => ['reports']]);
+        }, attributes: ['permission' => 'admin', 'plan' => 'basic', 'tags' => ['admin']]);
+
+        $this->assertSame(
+            ['permission' => 'admin', 'plan' => 'basic', 'tags' => ['admin']],
+            $this->collector->match('GET', '/admin/users')['attributes'] ?? null
+        );
+        $this->assertSame(
+            ['permission' => 'reports.view', 'plan' => 'basic', 'tags' => ['reports']],
+            $this->collector->match('GET', '/admin/reports/daily')['attributes'] ?? null,
+            'Inner group must replace outer values by key, not merge them'
+        );
+        $this->assertSame(
+            ['permission' => 'reports.view', 'plan' => 'pro', 'tags' => ['reports']],
+            $this->collector->match('GET', '/admin/reports/export')['attributes'] ?? null,
+            'Route attribute must replace the group value'
+        );
+    }
+
+    public function testGroupRejectsAttributesPassedAsMiddleware(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            "Group '/billing' middleware has key 'permission'; pass attributes as the fourth argument"
+        );
+
+        $this->collector->group('/billing', function (RouteCollector $router): void {
+            $router->get('/invoices', 'index');
+        }, ['permission' => 'billing.manage']);
+    }
+
+    public function testGroupRejectsMiddlewarePassedAsAttributes(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route attribute key '0' must be a name, not an integer");
+
+        // Rejected on entry, even before the group registers any route
+        $this->collector->group('/admin', function (): void {
+        }, [], ['AuthMiddleware']);
+    }
+
+    public function testGroupAcceptsMiddlewareWithNonSequentialIntegerKeys(): void
+    {
+        $this->collector->group('/admin', function (RouteCollector $router): void {
+            $router->get('/users', 'users');
+        }, array_filter([null, 'auth']));
+
+        $this->assertSame(['auth'], $this->collector->match('GET', '/admin/users')['middlewares'] ?? null);
     }
 
     public function testGroupRestoresStateWhenCallbackThrows(): void
@@ -198,7 +270,7 @@ class RouteCollectorTest extends TestCase
         try {
             $this->collector->group('/admin', function (): void {
                 throw new \RuntimeException('failed');
-            }, ['auth']);
+            }, ['auth'], ['permission' => 'admin']);
         } catch (\RuntimeException) {
         }
 
@@ -207,6 +279,7 @@ class RouteCollectorTest extends TestCase
         $match = $this->collector->match('GET', '/public');
         $this->assertNotFalse($match);
         $this->assertSame([], $match['middlewares']);
+        $this->assertSame([], $match['attributes']);
         $this->assertFalse($this->collector->match('GET', '/admin/public'));
     }
 

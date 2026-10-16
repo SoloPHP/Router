@@ -16,7 +16,8 @@ public function __construct(
     string $path,
     mixed $handler,
     array $middlewares = [],
-    ?string $name = null
+    ?string $name = null,
+    array $attributes = []
 )
 ```
 
@@ -30,6 +31,7 @@ public function __construct(
 | `$handler` | `mixed` | Route handler |
 | `$middlewares` | `array` | Initial middleware |
 | `$name` | `string\|null` | Route name |
+| `$attributes` | `array` | Initial [attributes](/features/attributes) |
 
 **Example:**
 
@@ -40,7 +42,8 @@ $route = new Route(
     path: '/users/{id}',
     handler: [UserController::class, 'show'],
     middlewares: [AuthMiddleware::class],
-    name: 'users.show'
+    name: 'users.show',
+    attributes: ['permission' => 'users.view']
 );
 ```
 
@@ -144,6 +147,56 @@ $middlewares = $route->getMiddlewares();
 
 ---
 
+## attribute()
+
+```php
+public function attribute(string $key, mixed $value): self
+```
+
+Set a custom attribute. The router stores it and returns it from `match()` without interpreting it. Replaces an earlier value for the same key, including one inherited from a group. Returns `$this` for chaining.
+
+Throws `InvalidArgumentException` if the key is an integer string such as `'42'`, which PHP would store as an integer key. The constructor's `$attributes` and the `attributes` option of `addRoute()` follow the same rule.
+
+```php
+$router->get('/reports', [ReportController::class, 'index'])
+    ->attribute('permission', 'reports.view')
+    ->attribute('plan', 'pro');
+```
+
+See [Route Attributes](/features/attributes).
+
+---
+
+## getAttribute()
+
+```php
+public function getAttribute(string $key, mixed $default = null): mixed
+```
+
+Get one attribute. Returns `$default` only when the key is not set; a stored `null` is returned as `null`.
+
+```php
+$route->getAttribute('permission');     // 'reports.view'
+$route->getAttribute('rate_limit', 60); // 60
+```
+
+---
+
+## getAttributes()
+
+```php
+public function getAttributes(): array
+```
+
+Get all attributes, including those inherited from groups.
+
+```php
+$attributes = $route->getAttributes();
+// ['permission' => 'reports.view', 'plan' => 'pro']
+```
+
+---
+
 ## HttpMethod Enum
 
 ```php
@@ -187,14 +240,16 @@ if ($route->method === HttpMethod::GET) {
 ```php
 $router->get('/admin/users/{id}/edit', [AdminUserController::class, 'edit'])
     ->name('admin.users.edit')
-    ->middleware(AuthMiddleware::class, AdminMiddleware::class);
+    ->middleware(AuthMiddleware::class, AdminMiddleware::class)
+    ->attribute('permission', 'users.edit');
 
 // Later
 $route = $router->getRouteByName('admin.users.edit');
 
-echo $route->getName();            // 'admin.users.edit'
-echo $route->path;                 // '/admin/users/{id}/edit'
-print_r($route->getMiddlewares()); // [AuthMiddleware::class, AdminMiddleware::class]
+echo $route->getName();                   // 'admin.users.edit'
+echo $route->path;                        // '/admin/users/{id}/edit'
+print_r($route->getMiddlewares());        // [AuthMiddleware::class, AdminMiddleware::class]
+echo $route->getAttribute('permission');  // 'users.edit'
 ```
 
 ---

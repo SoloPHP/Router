@@ -390,7 +390,8 @@ class RouterTest extends TestCase
             method: \Solo\Router\Enums\HttpMethod::GET,
             group: '',
             path: '/test',
-            handler: fn() => 'test'
+            handler: fn() => 'test',
+            attributes: ['permission' => 'test.view']
         );
 
         $router = new Router([$route]);
@@ -401,6 +402,7 @@ class RouterTest extends TestCase
 
         $match = $router->match('GET', '/test');
         $this->assertNotFalse($match);
+        $this->assertSame(['permission' => 'test.view'], $match['attributes']);
     }
 
     public function testMatchReturnsNameForStaticRoute(): void
@@ -512,12 +514,14 @@ class RouterTest extends TestCase
     {
         $this->router->addRoute('GET', '/login', fn() => 'login page', [
             'name' => 'login',
+            'attributes' => ['permission' => 'login.view'],
         ]);
 
         $match = $this->router->match('HEAD', '/login');
         $this->assertNotFalse($match);
         $this->assertEquals('login', $match['name']);
         $this->assertEquals([], $match['params']);
+        $this->assertSame(['permission' => 'login.view'], $match['attributes']);
     }
 
     public function testHeadFallbackToGetForDynamicRoute(): void
@@ -746,9 +750,12 @@ class RouterTest extends TestCase
         $route = $this->router->addRoute('GET', '/p[/]', fn() => 'p');
         $this->router->match('GET', '/p');
 
-        $route->middleware('auth');
+        $route->middleware('auth')->attribute('permission', 'p.view');
 
-        $this->assertSame(['auth'], $this->router->match('GET', '/p')['middlewares'] ?? null);
+        $match = $this->router->match('GET', '/p');
+        $this->assertNotFalse($match);
+        $this->assertSame(['auth'], $match['middlewares']);
+        $this->assertSame(['permission' => 'p.view'], $match['attributes']);
     }
 
     public function testOptionsRoute(): void
@@ -769,5 +776,74 @@ class RouterTest extends TestCase
         $this->assertSame(['GET', 'HEAD', 'PUT'], $this->router->getAllowedMethods('/users/1'));
         $this->assertSame(['POST'], $this->router->getAllowedMethods('/users'));
         $this->assertSame([], $this->router->getAllowedMethods('/missing'));
+    }
+
+    public function testAddRouteWithAttributes(): void
+    {
+        $route = $this->router->addRoute('GET', '/reports', fn() => 'reports', [
+            'attributes' => ['permission' => 'reports.view'],
+        ]);
+
+        $this->assertSame(['permission' => 'reports.view'], $route->getAttributes());
+
+        $match = $this->router->match('GET', '/reports');
+        $this->assertNotFalse($match);
+        $this->assertSame(['permission' => 'reports.view'], $match['attributes']);
+    }
+
+    public function testMatchReturnsEmptyAttributesWhenNotSet(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn() => 'show');
+
+        $match = $this->router->match('GET', '/users/1');
+        $this->assertNotFalse($match);
+        $this->assertSame([], $match['attributes']);
+    }
+
+    public function testAttributeReplacesEarlierValue(): void
+    {
+        $route = $this->router->addRoute('GET', '/reports', fn() => 'reports', [
+            'attributes' => ['permission' => 'reports.view', 'plan' => 'basic'],
+        ]);
+
+        $route->attribute('plan', 'pro')->attribute('plan', 'enterprise');
+
+        $this->assertSame(['permission' => 'reports.view', 'plan' => 'enterprise'], $route->getAttributes());
+    }
+
+    public function testGetAttributeReturnsDefaultOnlyForMissingKey(): void
+    {
+        $route = $this->router->addRoute('GET', '/p', fn() => 'p')->attribute('cache', null);
+
+        $this->assertNull($route->getAttribute('cache', 60), 'A stored null must not fall back to the default');
+        $this->assertSame(60, $route->getAttribute('rate_limit', 60));
+        $this->assertNull($route->getAttribute('rate_limit'));
+    }
+
+    public function testIntegerAttributeKeyThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route attribute key '0' must be a name, not an integer");
+
+        $this->router->addRoute('GET', '/admin', fn() => 'admin', ['attributes' => ['AuthMiddleware']]);
+    }
+
+    public function testIntegerStringAttributeKeyThrows(): void
+    {
+        $route = $this->router->addRoute('GET', '/p', fn() => 'p');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route attribute key '42' must be a name, not an integer");
+
+        $route->attribute('42', 'x');
+    }
+
+    public function testNonCanonicalNumericAttributeKeysStayStrings(): void
+    {
+        $route = $this->router->addRoute('GET', '/p', fn() => 'p')
+            ->attribute('007', 'agent')
+            ->attribute('1.5', 'ratio');
+
+        $this->assertSame(['007' => 'agent', '1.5' => 'ratio'], $route->getAttributes());
     }
 }

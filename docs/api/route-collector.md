@@ -104,11 +104,12 @@ $router->options('/{any:.*}', [CorsController::class, 'preflight']);
 public function group(
     string $prefix,
     callable $callback,
-    array $middlewares = []
+    array $middlewares = [],
+    array $attributes = []
 ): void
 ```
 
-Create a route group with shared prefix and middleware.
+Create a route group with shared prefix, middleware and attributes.
 
 **Parameters:**
 
@@ -117,6 +118,12 @@ Create a route group with shared prefix and middleware.
 | `$prefix` | `string` | URL prefix for all routes in the group |
 | `$callback` | `callable` | Function receiving RouteCollector instance |
 | `$middlewares` | `array` | Middleware to apply to all routes |
+| `$attributes` | `array` | [Attributes](/features/attributes) for all routes; an inner group or the route replaces a value by key |
+
+**Throws:**
+
+- `InvalidArgumentException` — If `$middlewares` has string keys, e.g. attributes passed as the third argument
+- `InvalidArgumentException` — If `$attributes` has integer keys, e.g. middleware passed as the fourth argument
 
 **Example:**
 

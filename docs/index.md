@@ -22,10 +22,10 @@ features:
     details: Static routes use O(1) hash lookup. Dynamic routes are prefiltered by their literal prefix.
   - icon: 🔗
     title: Fluent API
-    details: Chainable ->name() and ->middleware() methods for clean route definitions.
+    details: Chainable ->name(), ->middleware() and ->attribute() methods for clean route definitions.
   - icon: 📦
     title: Route Groups
-    details: Shared prefixes and middleware with nested group support.
+    details: Shared prefixes, middleware and attributes with nested group support.
   - icon: 🛡️
     title: Middleware
     details: Single and multiple middleware per route or group.
@@ -35,6 +35,9 @@ features:
   - icon: 🏷️
     title: Named Routes
     details: Easy route referencing by name for URL generation.
+  - icon: 🧩
+    title: Route Attributes
+    details: Custom data such as permissions on routes and groups, returned by match().
   - icon: 📡
     title: HEAD Support
     details: Automatic fallback to GET routes for HEAD requests per RFC 7231.
@@ -83,6 +86,7 @@ if ($match) {
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
     $name = $match['name'];           // route name or null
+    $attributes = $match['attributes']; // custom route data, [] if none
 }
 ```
 

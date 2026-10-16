@@ -9,11 +9,12 @@ High-performance PHP router with middleware support, route groups, named routes,
 ## Features
 
 - **High Performance** — Static routes use O(1) hash lookup, dynamic routes are prefiltered by literal prefix
-- **Fluent API** — Chainable `->name()` and `->middleware()` methods
-- **Route Groups** — Shared prefixes and middleware with nesting
+- **Fluent API** — Chainable `->name()`, `->middleware()` and `->attribute()` methods
+- **Route Groups** — Shared prefixes, middleware and attributes with nesting
 - **Middleware** — Single and multiple middleware per route/group
 - **Advanced Patterns** — Optional segments anywhere, nested optionals, regex constraints
 - **Named Routes** — Easy route referencing for URL generation
+- **Route Attributes** — Custom data such as permissions on routes and groups, returned by `match()`
 - **HEAD Support** — Automatic fallback to GET routes per RFC 7231
 - **405 Support** — `getAllowedMethods()` tells "method not allowed" from "not found"
 
@@ -34,16 +35,17 @@ $router = new RouteCollector();
 $router->get('/users', [UserController::class, 'index']);
 $router->get('/users/{id}', [UserController::class, 'show']);
 
-// Route with middleware and name
+// Route with middleware, name and attribute
 $router->post('/posts', [PostController::class, 'store'])
     ->middleware(AuthMiddleware::class)
-    ->name('posts.store');
+    ->name('posts.store')
+    ->attribute('permission', 'posts.create');
 
 // Route groups
 $router->group('/admin', function(RouteCollector $router) {
     $router->get('/dashboard', [AdminController::class, 'dashboard']);
     $router->get('/users', [AdminController::class, 'users']);
-}, [AuthMiddleware::class]);
+}, [AuthMiddleware::class], ['permission' => 'admin']);
 
 // Match request
 $match = $router->match('GET', '/users/123');
@@ -52,6 +54,7 @@ if ($match) {
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
     $name = $match['name'];           // route name or null
+    $attributes = $match['attributes']; // custom route data, [] if none
 }
 ```
 
@@ -67,6 +70,7 @@ if ($match) {
 - [Route Groups](https://solophp.github.io/Router/features/groups)
 - [Middleware](https://solophp.github.io/Router/features/middleware)
 - [Named Routes](https://solophp.github.io/Router/features/named-routes)
+- [Route Attributes](https://solophp.github.io/Router/features/attributes)
 - [API Reference](https://solophp.github.io/Router/api/router)
 
 ## Requirements

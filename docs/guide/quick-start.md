@@ -44,6 +44,7 @@ if ($match) {
     $params = $match['params'];       // ['id' => '123']
     $middlewares = $match['middlewares'];
     $name = $match['name'];           // route name or null
+    $attributes = $match['attributes']; // custom route data, [] if none
 } else {
     // No matching route found
 }

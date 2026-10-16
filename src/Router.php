@@ -54,9 +54,14 @@ class Router implements RouterInterface
      * @param string $method HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param string $path Route path pattern
      * @param mixed $handler Route handler (callable, controller, etc.)
-     * @param array{group?: string, middlewares?: array<int, callable|string>, name?: string|null} $options
-     * @throws InvalidArgumentException If the method is unsupported, the path is invalid,
-     *                                  or the route or its name is already registered
+     * @param array{
+     *     group?: string,
+     *     middlewares?: array<int, callable|string>,
+     *     name?: string|null,
+     *     attributes?: array<string, mixed>
+     * } $options
+     * @throws InvalidArgumentException If the method is unsupported, the path is invalid, an attribute key
+     *                                  is an integer, or the route or its name is already registered
      */
     public function addRoute(
         string $method,
@@ -73,7 +78,8 @@ class Router implements RouterInterface
             path: $path,
             handler: $handler,
             middlewares: $options['middlewares'] ?? [],
-            name: $options['name'] ?? null
+            name: $options['name'] ?? null,
+            attributes: $options['attributes'] ?? []
         ));
     }
 
@@ -121,7 +127,8 @@ class Router implements RouterInterface
      *     handler: callable|array{class-string, string}|string,
      *     params: array<string, string>,
      *     middlewares: array<int, callable|string>,
-     *     name: string|null
+     *     name: string|null,
+     *     attributes: array<string, mixed>
      * }|false
      * @throws InvalidArgumentException If a custom parameter regex is invalid
      */
@@ -139,6 +146,7 @@ class Router implements RouterInterface
             'params' => $params,
             'middlewares' => $route->getMiddlewares(),
             'name' => $route->getName(),
+            'attributes' => $route->getAttributes(),
         ];
     }
 
