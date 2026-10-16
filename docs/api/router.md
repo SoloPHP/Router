@@ -92,8 +92,10 @@ Match a request against registered routes.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `$method` | `string` | HTTP method |
+| `$method` | `string` | HTTP method, as sent by the client |
 | `$uri` | `string` | Request URI path |
+
+The method is matched case-sensitively, as [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-9.1) defines it: `get` does not match a `GET` route. Only registration is case-insensitive, so `addRoute('get', ...)` registers a `GET` route.
 
 **Returns:**
 
@@ -115,6 +117,8 @@ Per RFC 7231, if no explicit `HEAD` route is registered, `match()` automatically
 :::
 
 Static routes take precedence over dynamic ones; dynamic routes are tried in registration order.
+
+Parameters are returned as they appear in `$uri`. If you pass the raw request path, they are still percent-encoded: `/files/a%2Fb` gives `['name' => 'a%2Fb']` for `/files/{name}`. Decode them with `rawurldecode()` after matching.
 
 **Throws:**
 
@@ -146,7 +150,9 @@ public function getAllowedMethods(string $uri): array
 
 Get the HTTP methods that have a route matching the URI. Use it to tell `405 Method Not Allowed` from `404 Not Found` and to fill the `Allow` header. `HEAD` is included whenever `GET` matches.
 
-**Returns:** `list<string>`
+`Router` implements `Solo\Contracts\Router\AllowedMethodsInterface` with this method, so code that depends only on the contracts can check for it with `instanceof`.
+
+**Returns:** `list<string>`, in the order `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
 
 ```php
 $match = $router->match($method, $uri);
@@ -243,9 +249,13 @@ $router->addRoute('GET', '/users/{id}', [UserController::class, 'show']);
 $router->addRoute('GET', '/posts/{id}', [PostController::class, 'show']); // skipped
 ```
 
+### Allowed Methods in One Pass
+
+`getAllowedMethods()` checks each dynamic path once, whatever number of methods share it: `/users/{id}` registered for `GET`, `PUT` and `DELETE` runs one regex, not three.
+
 ### One-Pass Compilation
 
-Paths are compiled to regular expressions in a single pass when the route is registered, so syntax errors fail fast. PCRE compiles the resulting regex lazily on first use.
+Paths are compiled to regular expressions in a single pass when the route is registered, so syntax errors fail fast; a path shared by several methods is compiled once. PCRE compiles the resulting regex lazily on first use.
 
 ### Route Categorization
 

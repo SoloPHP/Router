@@ -16,7 +16,7 @@ High-performance PHP router with middleware support, route groups, named routes,
 - **Named Routes** — Easy route referencing for URL generation
 - **Route Attributes** — Custom data such as permissions on routes and groups, returned by `match()`
 - **HEAD Support** — Automatic fallback to GET routes per RFC 7231
-- **405 Support** — `getAllowedMethods()` tells "method not allowed" from "not found"
+- **405 Support** — `getAllowedMethods()` (`AllowedMethodsInterface` from `solophp/contracts`) tells "method not allowed" from "not found"
 
 ## Installation
 

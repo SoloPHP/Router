@@ -19,7 +19,7 @@ composer require solophp/router
 {
     "require": {
         "php": ">=8.1",
-        "solophp/contracts": "^1.2"
+        "solophp/contracts": "^1.5"
     }
 }
 ```

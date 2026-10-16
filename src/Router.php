@@ -6,6 +6,7 @@ namespace Solo\Router;
 
 use Closure;
 use InvalidArgumentException;
+use Solo\Contracts\Router\AllowedMethodsInterface;
 use Solo\Contracts\Router\RouterInterface;
 use Solo\Router\Matchers\RouteMatcher;
 use Solo\Router\Enums\HttpMethod;
@@ -13,7 +14,7 @@ use Solo\Router\Enums\HttpMethod;
 /**
  * High-performance router with optimized route matching.
  */
-class Router implements RouterInterface
+class Router implements RouterInterface, AllowedMethodsInterface
 {
     /** @var array<string, array<string, Route>> Static routes by method and path */
     private array $staticRoutes = [];
@@ -120,8 +121,10 @@ class Router implements RouterInterface
      * Match a request against registered routes.
      *
      * Static routes take precedence over dynamic ones; dynamic routes are tried in registration order.
+     * The method is matched case-sensitively, as RFC 9110 defines it: "get" does not match a GET route.
+     * Parameters are returned as they appear in the URI, without percent-decoding.
      *
-     * @param string $method HTTP method
+     * @param string $method HTTP method, as sent by the client
      * @param string $uri Request URI path
      * @return array{
      *     handler: callable|array{class-string, string}|string,
@@ -134,7 +137,7 @@ class Router implements RouterInterface
      */
     public function match(string $method, string $uri): array|false
     {
-        $found = $this->findRoute(strtoupper($method), $uri);
+        $found = $this->findRoute($method, $uri);
         if ($found === null) {
             return false;
         }
@@ -154,14 +157,26 @@ class Router implements RouterInterface
      * Get the HTTP methods that have a route matching the URI.
      *
      * Use it to tell 405 Method Not Allowed from 404 and to fill the Allow header.
+     * HEAD is included whenever GET is, as match() answers HEAD with GET routes.
      *
-     * @return list<string>
+     * @return list<string> In the order of HttpMethod cases
+     * @throws InvalidArgumentException If a custom parameter regex is invalid
      */
     public function getAllowedMethods(string $uri): array
     {
+        $found = $this->regexMatcher->methodsMatching($uri);
+        foreach ($this->staticRoutes as $method => $routes) {
+            if (isset($routes[$uri])) {
+                $found[$method] = true;
+            }
+        }
+        if (isset($found['GET'])) {
+            $found['HEAD'] = true;
+        }
+
         $allowed = [];
         foreach (HttpMethod::cases() as $method) {
-            if ($this->findRoute($method->value, $uri) !== null) {
+            if (isset($found[$method->value])) {
                 $allowed[] = $method->value;
             }
         }

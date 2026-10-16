@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Solo\Router\Test;
 
 use PHPUnit\Framework\TestCase;
+use Solo\Contracts\Router\AllowedMethodsInterface;
 use Solo\Router\Router;
 use InvalidArgumentException;
 
@@ -776,6 +777,62 @@ class RouterTest extends TestCase
         $this->assertSame(['GET', 'HEAD', 'PUT'], $this->router->getAllowedMethods('/users/1'));
         $this->assertSame(['POST'], $this->router->getAllowedMethods('/users'));
         $this->assertSame([], $this->router->getAllowedMethods('/missing'));
+    }
+
+    public function testGetAllowedMethodsCombinesStaticDynamicAndExplicitHead(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn() => 'show');
+        $this->router->addRoute('DELETE', '/users/{id}', fn() => 'delete');
+        $this->router->addRoute('PATCH', '/users/{id:\d+}', fn() => 'patch');
+        $this->router->addRoute('OPTIONS', '/users/me', fn() => 'options');
+        $this->router->addRoute('HEAD', '/ping', fn() => 'ping');
+
+        $this->assertSame(['GET', 'HEAD', 'PATCH', 'DELETE'], $this->router->getAllowedMethods('/users/1'));
+        $this->assertSame(['GET', 'HEAD', 'DELETE', 'OPTIONS'], $this->router->getAllowedMethods('/users/me'));
+        $this->assertSame(['HEAD'], $this->router->getAllowedMethods('/ping'));
+    }
+
+    public function testGetAllowedMethodsReportsInvalidParameterRegex(): void
+    {
+        $this->router->addRoute('GET', '/{id:a{2,1}}', fn() => '');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route 'GET /{id:a{2,1}}' compiles to an invalid regular expression");
+
+        @$this->router->getAllowedMethods('/aa');
+    }
+
+    public function testRouterImplementsAllowedMethodsContract(): void
+    {
+        $this->assertInstanceOf(AllowedMethodsInterface::class, $this->router);
+    }
+
+    public function testMethodIsMatchedCaseSensitively(): void
+    {
+        $this->router->addRoute('post', '/users', fn() => 'store');
+        $this->router->addRoute('GET', '/status', fn() => 'status');
+
+        $this->assertNotFalse($this->router->match('POST', '/users'), 'Registration stays case-insensitive');
+        $this->assertFalse($this->router->match('post', '/users'));
+        $this->assertFalse($this->router->match('head', '/status'), 'Only HEAD falls back to GET');
+        $this->assertSame(['POST'], $this->router->getAllowedMethods('/users'));
+    }
+
+    public function testTrailingNewlineDoesNotMatchEndOfPath(): void
+    {
+        $this->router->addRoute('GET', '/users/{id:\d+}', fn() => 'show');
+        $this->router->addRoute('GET', '/files/{name}/download', fn() => 'download');
+
+        $this->assertFalse($this->router->match('GET', "/users/1\n"));
+        $this->assertFalse($this->router->match('GET', "/files/a/download\n"));
+        $this->assertSame([], $this->router->getAllowedMethods("/users/1\n"));
+    }
+
+    public function testParamsAreReturnedWithoutDecoding(): void
+    {
+        $this->router->addRoute('GET', '/files/{name}', fn() => 'file');
+
+        $this->assertSame(['name' => 'a%2Fb'], $this->router->match('GET', '/files/a%2Fb')['params'] ?? null);
     }
 
     public function testAddRouteWithAttributes(): void

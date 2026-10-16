@@ -11,20 +11,25 @@ use Solo\Router\Route;
 /**
  * Matches URIs against dynamic routes in registration order.
  *
+ * A path registered for several methods is compiled once and shares its regex.
+ *
  * @internal
  */
 final class RouteMatcher
 {
     private readonly PatternCompiler $compiler;
 
-    /** @var array<string, array<string, string>> Literal path prefix by method and full path, in registration order */
+    /** @var array<string, string> Literal path prefix by full path */
     private array $prefixes = [];
 
-    /** @var array<string, array<string, string>> Compiled regex by method and full path */
+    /** @var array<string, string> Compiled regex by full path */
     private array $regexes = [];
 
-    /** @var array<string, array<string, Route>> Route by method and full path */
+    /** @var array<string, array<string, Route>> Route by method and full path, in registration order */
     private array $routes = [];
+
+    /** @var array<string, array<string, true>> Methods registered for each full path */
+    private array $methods = [];
 
     public function __construct()
     {
@@ -39,10 +44,14 @@ final class RouteMatcher
         $method = $route->method->value;
         $path = $route->fullPath;
 
-        $this->regexes[$method][$path] = $this->compiler->compile($path);
-        // Literal head of the path: routes whose prefix differs are skipped without running the regex
-        $this->prefixes[$method][$path] = substr($path, 0, strcspn($path, '{[('));
+        if (!isset($this->regexes[$path])) {
+            $this->regexes[$path] = $this->compiler->compile($path);
+            // Literal head of the path: routes whose prefix differs are skipped without running the regex
+            $this->prefixes[$path] = substr($path, 0, strcspn($path, '{[('));
+        }
+
         $this->routes[$method][$path] = $route;
+        $this->methods[$path][$method] = true;
     }
 
     public function has(string $method, string $path): bool
@@ -56,32 +65,59 @@ final class RouteMatcher
      */
     public function match(string $method, string $uri): ?array
     {
-        foreach ($this->prefixes[$method] ?? [] as $path => $prefix) {
-            if (!str_starts_with($uri, $prefix)) {
+        foreach ($this->routes[$method] ?? [] as $path => $route) {
+            if (!str_starts_with($uri, $this->prefixes[$path])) {
                 continue;
             }
 
-            $regex = $this->regexes[$method][$path];
-            $result = preg_match($regex, $uri, $matches);
-            if ($result === 0) {
-                continue;
+            $result = preg_match($this->regexes[$path], $uri, $matches);
+            if ($result === 1) {
+                $params = [];
+                foreach ($matches as $key => $value) {
+                    if (is_string($key) && $value !== '') {
+                        $params[$key] = $value;
+                    }
+                }
+
+                return [$route, $params];
             }
             if ($result === false) {
-                throw new InvalidArgumentException(
-                    "Route '{$method} {$path}' compiles to an invalid regular expression: {$regex}"
-                );
+                throw $this->invalidRegex($method, $path);
             }
-
-            $params = [];
-            foreach ($matches as $key => $value) {
-                if (is_string($key) && $value !== '') {
-                    $params[$key] = $value;
-                }
-            }
-
-            return [$this->routes[$method][$path], $params];
         }
 
         return null;
+    }
+
+    /**
+     * Methods that have a dynamic route matching the URI; each path's regex runs at most once.
+     *
+     * @return array<string, true>
+     * @throws InvalidArgumentException If a custom parameter regex is invalid
+     */
+    public function methodsMatching(string $uri): array
+    {
+        $methods = [];
+        foreach ($this->methods as $path => $pathMethods) {
+            if (!str_starts_with($uri, $this->prefixes[$path])) {
+                continue;
+            }
+
+            $result = preg_match($this->regexes[$path], $uri);
+            if ($result === 1) {
+                $methods += $pathMethods;
+            } elseif ($result === false) {
+                throw $this->invalidRegex((string) array_key_first($pathMethods), $path);
+            }
+        }
+
+        return $methods;
+    }
+
+    private function invalidRegex(string $method, string $path): InvalidArgumentException
+    {
+        return new InvalidArgumentException(
+            "Route '{$method} {$path}' compiles to an invalid regular expression: {$this->regexes[$path]}"
+        );
     }
 }
