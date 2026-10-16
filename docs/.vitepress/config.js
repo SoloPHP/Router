@@ -20,7 +20,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/installation' },
       { text: 'Features', link: '/features/parameters' },
       { text: 'API', link: '/api/route-collector' },
-      { text: 'v3.4.0', link: 'https://github.com/solophp/router/releases' },
+      { text: 'v3.5.0', link: 'https://github.com/solophp/router/releases' },
       {
         text: 'Links',
         items: [

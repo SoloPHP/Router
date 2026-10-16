@@ -77,7 +77,8 @@ final class PatternCompiler
             throw new InvalidArgumentException("Unmatched opening bracket(s) in: {$path}");
         }
 
-        return "#^{$regex}$#";
+        // D: "$" matches only at the very end, not before a trailing newline
+        return "#^{$regex}$#D";
     }
 
     /**
