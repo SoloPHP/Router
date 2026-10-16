@@ -6,140 +6,154 @@ namespace Solo\Router\Compilers;
 
 use InvalidArgumentException;
 
+/**
+ * Compiles a route path into an anchored regular expression in a single pass.
+ *
+ * Syntax: `{name}` and `{name:regex}` parameters, `[...]` optional segments (nestable),
+ * `(...)` raw regex groups with an optional trailing quantifier. Everything else is literal.
+ *
+ * @internal
+ */
 final class PatternCompiler
 {
-    private const PARAM_PLACEHOLDER = '__P%d__';
-    private const REGEX_PLACEHOLDER = '__REG_%d__';
+    private const SPECIAL_CHARS = '{}[]()';
+    private const DEFAULT_PARAM_PATTERN = '[^/]+';
+    private const QUANTIFIER = '/\G(?:[?*+]|\{\d+(?:,\d*)?})[?+]?/';
 
-    /** @var array<string, array{name: string, pattern: string}> */
-    private array $parameters = [];
-
+    /**
+     * @throws InvalidArgumentException If the path syntax is invalid
+     */
     public function compile(string $path): string
     {
-        $this->parameters = [];
+        $regex = '';
+        $params = [];
+        $optionalDepth = 0;
+        $length = strlen($path);
+        $i = 0;
 
-        $pattern = $this->extractParameters($path);
-        $pattern = $this->processOptionalSegments($pattern);
-        $pattern = $this->restoreParameters($pattern);
-        $pattern = $this->escapePattern($pattern);
+        while ($i < $length) {
+            $literalLength = strcspn($path, self::SPECIAL_CHARS, $i);
+            if ($literalLength > 0) {
+                $regex .= preg_quote(substr($path, $i, $literalLength), '#');
+                $i += $literalLength;
+                continue;
+            }
 
-        return "#^{$pattern}$#";
-    }
-
-    private function extractParameters(string $path): string
-    {
-        $result = preg_replace_callback(
-            '/{(\w+)(?::([^{}]*(?:{[^}]*}[^{}]*)*))?}/',
-            function ($m) {
-                $placeholder = sprintf(self::PARAM_PLACEHOLDER, count($this->parameters));
-                $this->parameters[$placeholder] = [
-                    'name' => $m[1],
-                    'pattern' => $m[2] ?? '[^\/]+'
-                ];
-                return $placeholder;
-            },
-            $path
-        );
-
-        return $result ?? $path;
-    }
-
-    private function processOptionalSegments(string $pattern): string
-    {
-        $this->validateBrackets($pattern);
-
-        while (preg_match('/\[([^\[\]]*)]/', $pattern, $m, PREG_OFFSET_CAPTURE)) {
-            $content = $m[1][0];
-            $offset = (int)$m[0][1];
-            $length = strlen($m[0][0]);
-
-            $replacement = "(?:{$content})?";
-            $pattern = substr_replace($pattern, $replacement, $offset, $length);
-        }
-
-        return $pattern;
-    }
-
-    private function restoreParameters(string $pattern): string
-    {
-        foreach ($this->parameters as $placeholder => $param) {
-            $regex = "(?P<{$param['name']}>{$param['pattern']})";
-            $pattern = str_replace($placeholder, $regex, $pattern);
-        }
-        return $pattern;
-    }
-
-    private function escapePattern(string $pattern): string
-    {
-        $constructs = [];
-
-        // First, protect all regex constructs including nested ones
-        $depth = 0;
-        $start = -1;
-        $len = strlen($pattern);
-
-        for ($i = 0; $i < $len; $i++) {
-            if (substr($pattern, $i, 2) === '(?') {
-                if ($depth === 0) {
-                    $start = $i;
-                }
-                $depth++;
-                $i++; // Skip the next character
-            } elseif ($pattern[$i] === '(' && $i > 0 && $pattern[$i - 1] !== '\\') {
-                if ($depth === 0) {
-                    $start = $i;
-                }
-                $depth++;
-            } elseif ($pattern[$i] === ')' && $i > 0 && $pattern[$i - 1] !== '\\') {
-                $depth--;
-                if ($depth === 0 && $start >= 0) {
-                    // Check if there's a quantifier after the closing parenthesis
-                    $end = $i + 1;
-                    if ($end < $len && in_array($pattern[$end], ['?', '*', '+'])) {
-                        $end++;
+            switch ($path[$i]) {
+                case '{':
+                    $end = $this->findClosing($path, $i, '{', '}');
+                    $regex .= $this->compileParameter(substr($path, $i + 1, $end - $i - 1), $params, $path);
+                    $i = $end + 1;
+                    break;
+                case '(':
+                    $end = $this->findClosing($path, $i, '(', ')') + 1;
+                    $end += $this->quantifierLength($path, $end);
+                    $regex .= substr($path, $i, $end - $i);
+                    $i = $end;
+                    break;
+                case '[':
+                    $optionalDepth++;
+                    $regex .= '(?:';
+                    $i++;
+                    break;
+                case ']':
+                    if ($optionalDepth === 0) {
+                        throw new InvalidArgumentException(
+                            "Unmatched closing bracket at position {$i} in: {$path}"
+                        );
                     }
-
-                    $construct = substr($pattern, $start, $end - $start);
-                    $id = sprintf(self::REGEX_PLACEHOLDER, count($constructs));
-                    $constructs[$id] = $construct;
-                    $pattern = substr_replace($pattern, $id, $start, $end - $start);
-                    $len = strlen($pattern);
-                    $i = $start + strlen($id) - 1;
-                }
+                    $optionalDepth--;
+                    $regex .= ')?';
+                    $i++;
+                    break;
+                default:
+                    throw new InvalidArgumentException(
+                        "Unmatched '{$path[$i]}' at position {$i} in: {$path}"
+                    );
             }
         }
 
-        $escaped = preg_quote($pattern, '#');
-
-        foreach ($constructs as $id => $construct) {
-            $escaped = str_replace(preg_quote($id, '#'), $construct, $escaped);
+        if ($optionalDepth !== 0) {
+            throw new InvalidArgumentException("Unmatched opening bracket(s) in: {$path}");
         }
 
-        return $escaped;
+        return "#^{$regex}$#";
     }
 
-    private function validateBrackets(string $pattern): void
+    /**
+     * @param array<string, true> $params Names already used in the path
+     */
+    private function compileParameter(string $definition, array &$params, string $path): string
     {
-        $depth = 0;
-        $len = strlen($pattern);
+        $colon = strpos($definition, ':');
+        $name = $colon === false ? $definition : substr($definition, 0, $colon);
+        $pattern = $colon === false ? self::DEFAULT_PARAM_PATTERN : substr($definition, $colon + 1);
 
-        for ($i = 0; $i < $len; $i++) {
-            if ($pattern[$i] === '[') {
+        if (!preg_match('/^[A-Za-z_]\w*$/', $name)) {
+            throw new InvalidArgumentException("Invalid parameter name '{$name}' in: {$path}");
+        }
+        if (isset($params[$name])) {
+            throw new InvalidArgumentException("Duplicate parameter '{$name}' in: {$path}");
+        }
+        $params[$name] = true;
+
+        return "(?P<{$name}>{$pattern})";
+    }
+
+    /**
+     * Finds the delimiter closing the one at $start, skipping escapes and character classes.
+     */
+    private function findClosing(string $path, int $start, string $open, string $close): int
+    {
+        // Fast path: nothing to skip or nest before the closing delimiter, e.g. "{id}"
+        $end = $start + 1 + strcspn($path, $open . $close . '[\\', $start + 1);
+        if (($path[$end] ?? '') === $close) {
+            return $end;
+        }
+
+        $depth = 0;
+        $length = strlen($path);
+
+        for ($i = $start; $i < $length; $i++) {
+            $char = $path[$i];
+            if ($char === '\\') {
+                $i++;
+            } elseif ($char === '[') {
+                $i = $this->findCharacterClassEnd($path, $i);
+            } elseif ($char === $open) {
                 $depth++;
-            } elseif ($pattern[$i] === ']') {
-                $depth--;
-                if ($depth < 0) {
-                    throw new InvalidArgumentException(
-                        "Unmatched closing bracket at position {$i} in: {$pattern}"
-                    );
-                }
+            } elseif ($char === $close && --$depth === 0) {
+                return $i;
             }
         }
 
-        if ($depth !== 0) {
-            throw new InvalidArgumentException(
-                "Unmatched opening bracket(s) in: {$pattern}"
-            );
+        throw new InvalidArgumentException("Unmatched '{$open}' at position {$start} in: {$path}");
+    }
+
+    private function findCharacterClassEnd(string $path, int $start): int
+    {
+        $length = strlen($path);
+        $i = $start + 1;
+        if ($i < $length && $path[$i] === '^') {
+            $i++;
         }
+        if ($i < $length && $path[$i] === ']') {
+            $i++; // A leading ']' is literal
+        }
+
+        for (; $i < $length; $i++) {
+            if ($path[$i] === '\\') {
+                $i++;
+            } elseif ($path[$i] === ']') {
+                return $i;
+            }
+        }
+
+        throw new InvalidArgumentException("Unterminated character class at position {$start} in: {$path}");
+    }
+
+    private function quantifierLength(string $path, int $offset): int
+    {
+        return preg_match(self::QUANTIFIER, $path, $m, 0, $offset) ? strlen($m[0]) : 0;
     }
 }

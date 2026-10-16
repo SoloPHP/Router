@@ -26,6 +26,13 @@ class RouteCollectorTest extends TestCase
         $this->assertNotFalse($match);
     }
 
+    public function testOptionsRoute(): void
+    {
+        $this->collector->options('/users', fn() => '');
+        $match = $this->collector->match('OPTIONS', '/users');
+        $this->assertNotFalse($match);
+    }
+
     public function testHeadRoute(): void
     {
         $this->collector->head('/health', fn() => '');
@@ -105,15 +112,12 @@ class RouteCollectorTest extends TestCase
             return "User: $id";
         })->name('user.show');
 
-        $this->collector->get('/users', function () {
-            return "Users list";
-        })->name('user.show');
-
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Route with name 'user.show' already exists");
 
-        // Exception is thrown lazily when building name index
-        $this->collector->getRouteByName('user.show');
+        $this->collector->get('/users', function () {
+            return "Users list";
+        })->name('user.show');
     }
 
     public function testRouteGroupWithMiddleware(): void
@@ -187,6 +191,23 @@ class RouteCollectorTest extends TestCase
 
         $this->assertSame([$a], $matchA['middlewares']);
         $this->assertSame([$b], $matchB['middlewares']);
+    }
+
+    public function testGroupRestoresStateWhenCallbackThrows(): void
+    {
+        try {
+            $this->collector->group('/admin', function (): void {
+                throw new \RuntimeException('failed');
+            }, ['auth']);
+        } catch (\RuntimeException) {
+        }
+
+        $this->collector->get('/public', 'public');
+
+        $match = $this->collector->match('GET', '/public');
+        $this->assertNotFalse($match);
+        $this->assertSame([], $match['middlewares']);
+        $this->assertFalse($this->collector->match('GET', '/admin/public'));
     }
 
     public function testOptionalLanguagePrefixWithSingleGroup(): void

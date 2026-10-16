@@ -73,6 +73,8 @@ public function name(string $name): self
 
 Set the route name. Returns `$this` for chaining.
 
+Throws `InvalidArgumentException` if the router already has another route with this name.
+
 ```php
 $router->get('/users/{id}', [UserController::class, 'show'])
     ->name('users.show');
@@ -150,10 +152,12 @@ namespace Solo\Router\Enums;
 enum HttpMethod: string
 {
     case GET = 'GET';
+    case HEAD = 'HEAD';
     case POST = 'POST';
     case PUT = 'PUT';
     case PATCH = 'PATCH';
     case DELETE = 'DELETE';
+    case OPTIONS = 'OPTIONS';
 }
 ```
 
@@ -197,9 +201,9 @@ print_r($route->getMiddlewares()); // [AuthMiddleware::class, AdminMiddleware::c
 
 ## Full Path
 
-To get the complete route path including the group prefix:
+The complete route path including the group prefix:
 
 ```php
-$fullPath = $route->group . $route->path;
+$route->fullPath;
 // '/api/users/{id}'
 ```

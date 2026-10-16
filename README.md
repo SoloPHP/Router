@@ -8,13 +8,14 @@ High-performance PHP router with middleware support, route groups, named routes,
 
 ## Features
 
-- **High Performance** — Static routes use O(1) hash lookup, pattern caching
+- **High Performance** — Static routes use O(1) hash lookup, dynamic routes are prefiltered by literal prefix
 - **Fluent API** — Chainable `->name()` and `->middleware()` methods
 - **Route Groups** — Shared prefixes and middleware with nesting
 - **Middleware** — Single and multiple middleware per route/group
 - **Advanced Patterns** — Optional segments anywhere, nested optionals, regex constraints
 - **Named Routes** — Easy route referencing for URL generation
 - **HEAD Support** — Automatic fallback to GET routes per RFC 7231
+- **405 Support** — `getAllowedMethods()` tells "method not allowed" from "not found"
 
 ## Installation
 

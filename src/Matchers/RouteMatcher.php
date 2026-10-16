@@ -4,28 +4,27 @@ declare(strict_types=1);
 
 namespace Solo\Router\Matchers;
 
+use InvalidArgumentException;
 use Solo\Router\Compilers\PatternCompiler;
 use Solo\Router\Route;
 
+/**
+ * Matches URIs against dynamic routes in registration order.
+ *
+ * @internal
+ */
 final class RouteMatcher
 {
     private readonly PatternCompiler $compiler;
 
-    /** @var array<string, string> */
-    private array $compiledPatterns = [];
+    /** @var array<string, array<string, string>> Literal path prefix by method and full path, in registration order */
+    private array $prefixes = [];
 
-    /**
-     * Per-URI cache of successful matches that captured no parameters
-     * (dynamic routes with optional segments collapsing to a bare form).
-     *
-     * @var array<string, array<string, array{
-     *     handler: mixed,
-     *     params: array<string, string>,
-     *     middlewares: array<int, callable|string>,
-     *     name: string|null
-     * }>>
-     */
-    private array $matchCache = [];
+    /** @var array<string, array<string, string>> Compiled regex by method and full path */
+    private array $regexes = [];
+
+    /** @var array<string, array<string, Route>> Route by method and full path */
+    private array $routes = [];
 
     public function __construct()
     {
@@ -33,57 +32,56 @@ final class RouteMatcher
     }
 
     /**
-     * @param Route[] $routes Routes already filtered by method
-     * @return array{
-     *     handler: mixed,
-     *     params: array<string, string>,
-     *     middlewares: array<int, callable|string>,
-     *     name: string|null
-     * }|null
+     * @throws InvalidArgumentException If the route path syntax is invalid
      */
-    public function match(array $routes, string $method, string $uri): ?array
+    public function add(Route $route): void
     {
-        if (isset($this->matchCache[$method][$uri])) {
-            return $this->matchCache[$method][$uri];
-        }
+        $method = $route->method->value;
+        $path = $route->fullPath;
 
-        foreach ($routes as $route) {
-            $fullPath = $route->group . $route->path;
+        $this->regexes[$method][$path] = $this->compiler->compile($path);
+        // Literal head of the path: routes whose prefix differs are skipped without running the regex
+        $this->prefixes[$method][$path] = substr($path, 0, strcspn($path, '{[('));
+        $this->routes[$method][$path] = $route;
+    }
 
-            if (!isset($this->compiledPatterns[$fullPath])) {
-                $this->compiledPatterns[$fullPath] = $this->compiler->compile($fullPath);
-            }
+    public function has(string $method, string $path): bool
+    {
+        return isset($this->routes[$method][$path]);
+    }
 
-            if (!preg_match($this->compiledPatterns[$fullPath], $uri, $matches)) {
+    /**
+     * @return array{Route, array<string, string>}|null Matched route and its non-empty named parameters
+     * @throws InvalidArgumentException If a custom parameter regex is invalid
+     */
+    public function match(string $method, string $uri): ?array
+    {
+        foreach ($this->prefixes[$method] ?? [] as $path => $prefix) {
+            if (!str_starts_with($uri, $prefix)) {
                 continue;
             }
 
-            $params = array_filter(
-                $matches,
-                fn($v, $k) => is_string($k) && $v !== '',
-                ARRAY_FILTER_USE_BOTH
-            );
-
-            $result = [
-                'handler' => $route->handler,
-                'params' => $params,
-                'middlewares' => $route->getMiddlewares(),
-                'name' => $route->getName(),
-            ];
-
-            if (empty($params)) {
-                $this->matchCache[$method][$uri] = $result;
+            $regex = $this->regexes[$method][$path];
+            $result = preg_match($regex, $uri, $matches);
+            if ($result === 0) {
+                continue;
+            }
+            if ($result === false) {
+                throw new InvalidArgumentException(
+                    "Route '{$method} {$path}' compiles to an invalid regular expression: {$regex}"
+                );
             }
 
-            return $result;
+            $params = [];
+            foreach ($matches as $key => $value) {
+                if (is_string($key) && $value !== '') {
+                    $params[$key] = $value;
+                }
+            }
+
+            return [$this->routes[$method][$path], $params];
         }
 
         return null;
-    }
-
-    public function clearCache(): void
-    {
-        $this->compiledPatterns = [];
-        $this->matchCache = [];
     }
 }

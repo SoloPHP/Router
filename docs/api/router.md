@@ -46,7 +46,7 @@ Add a new route to the router.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `$method` | `string` | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE) |
+| `$method` | `string` | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS) |
 | `$path` | `string` | Route path pattern |
 | `$handler` | `mixed` | Route handler |
 | `$options` | `array` | Optional settings |
@@ -72,6 +72,8 @@ $router->addRoute('GET', '/users/{id}', [UserController::class, 'show'], [
 **Throws:**
 
 - `InvalidArgumentException` — If HTTP method is not supported
+- `InvalidArgumentException` — If the path is invalid (unmatched brackets, invalid or duplicate parameter names)
+- `InvalidArgumentException` — If a route with the same method and full path, or with the same name, is already registered
 
 ---
 
@@ -108,6 +110,12 @@ On no match: `false`
 Per RFC 7231, if no explicit `HEAD` route is registered, `match()` automatically falls back to the matching `GET` route. This ensures `curl -I` and monitoring tools work without registering separate HEAD routes.
 :::
 
+Static routes take precedence over dynamic ones; dynamic routes are tried in registration order.
+
+**Throws:**
+
+- `InvalidArgumentException` — If a custom parameter regex (e.g. `{id:a{2,1}}`) is not a valid regular expression. Custom regexes are compiled on first use, so this surfaces on the first request that reaches the route.
+
 **Example:**
 
 ```php
@@ -120,6 +128,32 @@ if ($match !== false) {
     $name = $match['name'];           // 'users.show' or null
 } else {
     // 404 Not Found
+}
+```
+
+---
+
+## getAllowedMethods()
+
+```php
+public function getAllowedMethods(string $uri): array
+```
+
+Get the HTTP methods that have a route matching the URI. Use it to tell `405 Method Not Allowed` from `404 Not Found` and to fill the `Allow` header. `HEAD` is included whenever `GET` matches.
+
+**Returns:** `list<string>`
+
+```php
+$match = $router->match($method, $uri);
+
+if ($match === false) {
+    $allowed = $router->getAllowedMethods($uri);
+    if ($allowed !== []) {
+        http_response_code(405);
+        header('Allow: ' . implode(', ', $allowed));
+    } else {
+        http_response_code(404);
+    }
 }
 ```
 
@@ -161,10 +195,6 @@ Get a route by its name.
 
 **Returns:** `Route|null`
 
-**Throws:**
-
-- `InvalidArgumentException` — If duplicate route names exist
-
 ```php
 $route = $router->getRouteByName('users.show');
 
@@ -198,14 +228,19 @@ Routes are indexed by HTTP method to avoid checking all routes:
 $router->match('GET', '/users');
 ```
 
-### Pattern Caching
+### Prefix Filtering
 
-Compiled regex patterns are cached:
+Each dynamic route remembers the literal text before its first parameter, optional segment or regex group. Routes whose prefix does not match the URI are skipped without running a regex:
 
 ```php
-// Pattern compiled once, cached for subsequent matches
+// Only routes starting with '/users/' run their regex for /users/123
 $router->addRoute('GET', '/users/{id}', [UserController::class, 'show']);
+$router->addRoute('GET', '/posts/{id}', [PostController::class, 'show']); // skipped
 ```
+
+### One-Pass Compilation
+
+Paths are compiled to regular expressions in a single pass when the route is registered, so syntax errors fail fast. PCRE compiles the resulting regex lazily on first use.
 
 ### Route Categorization
 

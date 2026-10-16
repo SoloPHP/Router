@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Solo\Router;
 
+use Solo\Router\Enums\HttpMethod;
+
 /**
  * Route collector with fluent API for route configuration.
  */
@@ -21,7 +23,7 @@ final class RouteCollector extends Router
      */
     public function get(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('GET', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::GET, $path, $handler);
     }
 
     /**
@@ -31,7 +33,7 @@ final class RouteCollector extends Router
      */
     public function head(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('HEAD', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::HEAD, $path, $handler);
     }
 
     /**
@@ -41,7 +43,7 @@ final class RouteCollector extends Router
      */
     public function post(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('POST', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::POST, $path, $handler);
     }
 
     /**
@@ -51,7 +53,7 @@ final class RouteCollector extends Router
      */
     public function put(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('PUT', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::PUT, $path, $handler);
     }
 
     /**
@@ -61,7 +63,7 @@ final class RouteCollector extends Router
      */
     public function patch(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('PATCH', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::PATCH, $path, $handler);
     }
 
     /**
@@ -71,7 +73,17 @@ final class RouteCollector extends Router
      */
     public function delete(string $path, callable|array|string $handler): Route
     {
-        return $this->addHttpRoute('DELETE', $path, $handler);
+        return $this->addHttpRoute(HttpMethod::DELETE, $path, $handler);
+    }
+
+    /**
+     * Adds an OPTIONS route.
+     *
+     * @param callable|array{class-string, string}|class-string $handler
+     */
+    public function options(string $path, callable|array|string $handler): Route
+    {
+        return $this->addHttpRoute(HttpMethod::OPTIONS, $path, $handler);
     }
 
     /**
@@ -80,19 +92,17 @@ final class RouteCollector extends Router
      * @param callable|array{class-string, string}|class-string $handler
      */
     private function addHttpRoute(
-        string $method,
+        HttpMethod $method,
         string $path,
         callable|array|string $handler
     ): Route {
-        return $this->addRoute(
+        return $this->addRouteObject(new Route(
             method: $method,
+            group: $this->group,
             path: $path,
             handler: $handler,
-            options: [
-                'group' => $this->group,
-                'middlewares' => $this->groupMiddleware,
-            ]
-        );
+            middlewares: $this->groupMiddleware
+        ));
     }
 
     /**
@@ -111,9 +121,11 @@ final class RouteCollector extends Router
         $this->group = $previousGroup . $prefix;
         $this->groupMiddleware = [...$previousMiddleware, ...$middlewares];
 
-        $callback($this);
-
-        $this->group = $previousGroup;
-        $this->groupMiddleware = $previousMiddleware;
+        try {
+            $callback($this);
+        } finally {
+            $this->group = $previousGroup;
+            $this->groupMiddleware = $previousMiddleware;
+        }
     }
 }

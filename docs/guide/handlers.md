@@ -82,7 +82,13 @@ After matching a route, dispatch the handler:
 $match = $router->match($method, $uri);
 
 if ($match === false) {
-    http_response_code(404);
+    $allowed = $router->getAllowedMethods($uri);
+    if ($allowed !== []) {
+        http_response_code(405);
+        header('Allow: ' . implode(', ', $allowed));
+    } else {
+        http_response_code(404);
+    }
     exit;
 }
 

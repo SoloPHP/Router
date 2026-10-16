@@ -131,6 +131,22 @@ See [Optional Segments](/features/optional-segments) for combining parameters wi
 
 ---
 
+## Parameter Names
+
+A name starts with a letter or underscore and contains only letters, digits and underscores. Each name can appear once per route (group prefix included). Invalid definitions throw `InvalidArgumentException` when the route is registered:
+
+```php
+$router->get('/users/{id}/{id}', ...);
+// InvalidArgumentException: Duplicate parameter 'id' in: /users/{id}/{id}
+
+$router->get('/page{2}', ...);
+// InvalidArgumentException: Invalid parameter name '2' in: /page{2}
+```
+
+Text outside parameters and `(...)` groups is literal: `/v1.0/{id}` matches `/v1.0/5`, not `/v1x0/5`.
+
+---
+
 ## Validation
 
 Parameters are validated during matching:

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Solo\Router;
 
+use Closure;
 use InvalidArgumentException;
 use Solo\Contracts\Router\RouterInterface;
 use Solo\Router\Matchers\RouteMatcher;
@@ -14,31 +15,33 @@ use Solo\Router\Enums\HttpMethod;
  */
 class Router implements RouterInterface
 {
-    /** @var array<string, Route> */
+    /** @var array<string, array<string, Route>> Static routes by method and path */
     private array $staticRoutes = [];
 
-    /** @var array<string, Route[]> */
-    private array $dynamicRoutes = [];
-
-    /** @var Route[] */
+    /** @var list<Route> */
     private array $routes = [];
 
-    /** @var array<string, Route>|null */
-    private ?array $routeNameIndex = null;
+    /** @var array<string, Route> */
+    private array $namedRoutes = [];
 
     /**
      * Regex matcher for dynamic and complex routes.
      */
     private readonly RouteMatcher $regexMatcher;
 
+    /** @var Closure(Route, string): void Shared by all routes to keep the name index in sync */
+    private readonly Closure $renameListener;
+
     /**
      * Create a new Router instance.
      *
      * @param Route[] $routes Optional initial routes
+     * @throws InvalidArgumentException If a route is invalid or already registered
      */
     public function __construct(array $routes = [])
     {
         $this->regexMatcher = new RouteMatcher();
+        $this->renameListener = $this->renameRoute(...);
 
         foreach ($routes as $route) {
             $this->addRouteObject($route);
@@ -52,7 +55,8 @@ class Router implements RouterInterface
      * @param string $path Route path pattern
      * @param mixed $handler Route handler (callable, controller, etc.)
      * @param array{group?: string, middlewares?: array<int, callable|string>, name?: string|null} $options
-     * @throws InvalidArgumentException If method is invalid
+     * @throws InvalidArgumentException If the method is unsupported, the path is invalid,
+     *                                  or the route or its name is already registered
      */
     public function addRoute(
         string $method,
@@ -63,94 +67,104 @@ class Router implements RouterInterface
         $httpMethod = HttpMethod::tryFrom(strtoupper($method))
             ?? throw new InvalidArgumentException("Unsupported HTTP method: $method");
 
-        $route = new Route(
+        return $this->addRouteObject(new Route(
             method: $httpMethod,
             group: $options['group'] ?? '',
             path: $path,
             handler: $handler,
             middlewares: $options['middlewares'] ?? [],
             name: $options['name'] ?? null
-        );
+        ));
+    }
 
-        $this->addRouteObject($route);
+    /**
+     * Add a Route object to the router.
+     *
+     * @throws InvalidArgumentException If the path is invalid or the route or its name is already registered
+     */
+    protected function addRouteObject(Route $route): Route
+    {
+        $method = $route->method->value;
+        $path = $route->fullPath;
+        $name = $route->getName();
+
+        if (isset($this->staticRoutes[$method][$path]) || $this->regexMatcher->has($method, $path)) {
+            throw new InvalidArgumentException("Route '$method $path' is already registered");
+        }
+        if ($name !== null) {
+            $this->assertNameAvailable($name, $route);
+        }
+
+        if (strpbrk($path, '{}[]()') === false) {
+            $this->staticRoutes[$method][$path] = $route;
+        } else {
+            $this->regexMatcher->add($route);
+        }
+
+        $this->routes[] = $route;
+        if ($name !== null) {
+            $this->namedRoutes[$name] = $route;
+        }
+        $route->onNameChange($this->renameListener);
 
         return $route;
     }
 
     /**
-     * Add a Route object to the router.
-     */
-    private function addRouteObject(Route $route): void
-    {
-        $this->routes[] = $route;
-        $this->routeNameIndex = null;
-
-        $method = $route->method->value;
-        $fullPath = $route->group . $route->path;
-
-        if ($this->isStaticRoute($fullPath)) {
-            $this->staticRoutes[$method . ':' . $fullPath] = $route;
-        } else {
-            $this->dynamicRoutes[$method][] = $route;
-        }
-    }
-
-    /**
-     * Check if route is static (no parameters, optional segments, or regex groups).
-     */
-    private function isStaticRoute(string $path): bool
-    {
-        return !str_contains($path, '{')
-            && !str_contains($path, '[')
-            && !str_contains($path, '(');
-    }
-
-    /**
      * Match a request against registered routes.
      *
+     * Static routes take precedence over dynamic ones; dynamic routes are tried in registration order.
+     *
      * @param string $method HTTP method
-     * @param string $uri Request URI
+     * @param string $uri Request URI path
      * @return array{
      *     handler: callable|array{class-string, string}|string,
      *     params: array<string, string>,
      *     middlewares: array<int, callable|string>,
      *     name: string|null
      * }|false
+     * @throws InvalidArgumentException If a custom parameter regex is invalid
      */
     public function match(string $method, string $uri): array|false
     {
-        $method = strtoupper($method);
+        $found = $this->findRoute(strtoupper($method), $uri);
+        if ($found === null) {
+            return false;
+        }
 
-        // HEAD falls back to GET if no explicit HEAD route exists (RFC 7231)
-        $methods = ($method === 'HEAD') ? ['HEAD', 'GET'] : [$method];
+        [$route, $params] = $found;
 
-        foreach ($methods as $m) {
-            $staticKey = $m . ':' . $uri;
-            if (isset($this->staticRoutes[$staticKey])) {
-                $route = $this->staticRoutes[$staticKey];
-                return [
-                    'handler' => $route->handler,
-                    'params' => [],
-                    'middlewares' => $route->getMiddlewares(),
-                    'name' => $route->getName(),
-                ];
-            }
+        return [
+            'handler' => $route->handler,
+            'params' => $params,
+            'middlewares' => $route->getMiddlewares(),
+            'name' => $route->getName(),
+        ];
+    }
 
-            if (isset($this->dynamicRoutes[$m])) {
-                $result = $this->regexMatcher->match($this->dynamicRoutes[$m], $m, $uri);
-                if ($result !== null) {
-                    return $result;
-                }
+    /**
+     * Get the HTTP methods that have a route matching the URI.
+     *
+     * Use it to tell 405 Method Not Allowed from 404 and to fill the Allow header.
+     *
+     * @return list<string>
+     */
+    public function getAllowedMethods(string $uri): array
+    {
+        $allowed = [];
+        foreach (HttpMethod::cases() as $method) {
+            if ($this->findRoute($method->value, $uri) !== null) {
+                $allowed[] = $method->value;
             }
         }
 
-        return false;
+        return $allowed;
     }
 
     /**
      * Get all registered routes.
      *
-     * @return Route[]
+     * @return list<Route>
      */
     public function getRoutes(): array
     {
@@ -164,31 +178,53 @@ class Router implements RouterInterface
      */
     public function getRouteByName(string $name): ?Route
     {
-        $this->buildNameIndex();
-        return $this->routeNameIndex[$name] ?? null;
+        return $this->namedRoutes[$name] ?? null;
     }
 
     /**
-     * Build name index lazily.
-     *
-     * @throws InvalidArgumentException If duplicate route names exist
+     * @return array{Route, array<string, string>}|null
      */
-    private function buildNameIndex(): void
+    private function findRoute(string $method, string $uri): ?array
     {
-        if ($this->routeNameIndex !== null) {
-            return;
+        // HEAD falls back to GET if no explicit HEAD route exists (RFC 7231)
+        foreach ($method === 'HEAD' ? ['HEAD', 'GET'] : [$method] as $m) {
+            if (isset($this->staticRoutes[$m][$uri])) {
+                return [$this->staticRoutes[$m][$uri], []];
+            }
+
+            $found = $this->regexMatcher->match($m, $uri);
+            if ($found !== null) {
+                return $found;
+            }
         }
 
-        $this->routeNameIndex = [];
-        foreach ($this->routes as $route) {
-            $name = $route->getName();
-            if ($name === null) {
-                continue;
-            }
-            if (isset($this->routeNameIndex[$name])) {
-                throw new InvalidArgumentException("Route with name '$name' already exists");
-            }
-            $this->routeNameIndex[$name] = $route;
+        return null;
+    }
+
+    /**
+     * Keep the name index in sync when a registered route is renamed.
+     *
+     * @throws InvalidArgumentException If another route already has the name
+     */
+    private function renameRoute(Route $route, string $name): void
+    {
+        $this->assertNameAvailable($name, $route);
+
+        $previous = $route->getName();
+        if ($previous !== null) {
+            unset($this->namedRoutes[$previous]);
+        }
+        $this->namedRoutes[$name] = $route;
+    }
+
+    /**
+     * @throws InvalidArgumentException If another route already has the name
+     */
+    private function assertNameAvailable(string $name, Route $route): void
+    {
+        $owner = $this->namedRoutes[$name] ?? null;
+        if ($owner !== null && $owner !== $route) {
+            throw new InvalidArgumentException("Route with name '$name' already exists");
         }
     }
 }

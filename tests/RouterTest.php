@@ -6,7 +6,6 @@ namespace Solo\Router\Test;
 
 use PHPUnit\Framework\TestCase;
 use Solo\Router\Router;
-use Solo\Router\Matchers\RouteMatcher;
 use InvalidArgumentException;
 
 class RouterTest extends TestCase
@@ -306,34 +305,6 @@ class RouterTest extends TestCase
         $this->assertFalse($result);
     }
 
-    public function testRouteMatcherWithCache(): void
-    {
-        $matcher = new RouteMatcher();
-
-        $this->router->addRoute('GET', '/users/{id}', fn($id) => "User $id");
-        $this->router->addRoute('GET', '/posts/{id}', fn($id) => "Post $id");
-
-        $routes = $this->router->getRoutes();
-
-        // First request - not from cache
-        $result1 = $matcher->match($routes, 'GET', '/users/1');
-        $this->assertNotNull($result1);
-        $this->assertEquals(['id' => '1'], $result1['params']);
-
-        // Second request - from cache
-        $result2 = $matcher->match($routes, 'GET', '/users/1');
-        $this->assertNotNull($result2);
-        $this->assertEquals($result1, $result2);
-
-        // Fill cache
-        $matcher->match($routes, 'GET', '/posts/2');
-        $matcher->match($routes, 'GET', '/posts/3');
-        $matcher->match($routes, 'GET', '/posts/4');
-
-        // Clear cache
-        $matcher->clearCache();
-    }
-
     public function testComplexOptionalSegmentsWithGroups(): void
     {
         $this->router->addRoute(
@@ -375,22 +346,42 @@ class RouterTest extends TestCase
         $this->assertEquals(['lang' => 'en', 'id' => '456'], $result['params']);
     }
 
-    public function testInvalidBracketsThrowsException(): void
+    public function testInvalidBracketsThrowsOnRegistration(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unmatched opening bracket');
+        $this->expectExceptionMessage('Unmatched opening bracket(s) in: /users[/{id}');
 
         $this->router->addRoute('GET', '/users[/{id}', fn() => '');
-        $this->router->match('GET', '/users');
     }
 
-    public function testUnmatchedClosingBracketThrowsException(): void
+    public function testUnmatchedClosingBracketThrowsOnRegistration(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Unmatched closing bracket');
 
         $this->router->addRoute('GET', '/users/{id}]', fn() => '');
-        $this->router->match('GET', '/users/123');
+    }
+
+    public function testUnmatchedClosingBracketWithoutParametersThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unmatched closing bracket');
+
+        $this->router->addRoute('GET', '/users]', fn() => '');
+    }
+
+    public function testInvalidRouteDoesNotBreakOtherRoutes(): void
+    {
+        try {
+            $this->router->addRoute('GET', '/broken[/{id}', fn() => 'broken');
+        } catch (InvalidArgumentException) {
+        }
+        $this->router->addRoute('GET', '/ok/{id}', fn() => 'ok');
+
+        $match = $this->router->match('GET', '/ok/1');
+        $this->assertNotFalse($match);
+        $this->assertSame(['id' => '1'], $match['params']);
+        $this->assertCount(1, $this->router->getRoutes());
     }
 
     public function testConstructorWithRoutes(): void
@@ -459,18 +450,15 @@ class RouterTest extends TestCase
         $this->assertEquals($match1, $match2);
     }
 
-    public function testDynamicRouteCacheInMatcher(): void
+    public function testDynamicRouteWithoutParamsMatchesRepeatedly(): void
     {
-        // Dynamic routes with no params get cached in RouteMatcher
         $this->router->addRoute('GET', '/users[/]', fn() => 'users');
 
-        // First match
         $match1 = $this->router->match('GET', '/users');
         $this->assertNotFalse($match1);
 
-        // Second match - should hit RouteMatcher's static cache
         $match2 = $this->router->match('GET', '/users');
-        $this->assertNotFalse($match2);
+        $this->assertEquals($match1, $match2);
     }
 
     public function testGetRouteByNameNotFound(): void
@@ -481,7 +469,7 @@ class RouterTest extends TestCase
         $this->assertNull($route);
     }
 
-    public function testNameIndexCacheInvalidation(): void
+    public function testNameIndexUpdatedOnRegistration(): void
     {
         $this->router->addRoute('GET', '/first', fn() => 'first')->name('first');
 
@@ -489,23 +477,19 @@ class RouterTest extends TestCase
         $route1 = $this->router->getRouteByName('first');
         $this->assertNotNull($route1);
 
-        // Add another route - should invalidate index
         $this->router->addRoute('GET', '/second', fn() => 'second')->name('second');
 
-        // Index rebuilt
         $route2 = $this->router->getRouteByName('second');
         $this->assertNotNull($route2);
     }
 
-    public function testNameIndexCacheHit(): void
+    public function testGetRouteByNameReturnsSameInstance(): void
     {
         $this->router->addRoute('GET', '/test', fn() => 'test')->name('test.route');
 
-        // First call builds the index
         $route1 = $this->router->getRouteByName('test.route');
         $this->assertNotNull($route1);
 
-        // Second call should use cached index (early return in buildNameIndex)
         $route2 = $this->router->getRouteByName('test.route');
         $this->assertSame($route1, $route2);
     }
@@ -583,5 +567,207 @@ class RouterTest extends TestCase
         // Should not match other paths
         $match = $this->router->match('GET', '/guest/profile');
         $this->assertFalse($match);
+    }
+
+    public function testLiteralTextInsideOptionalSegmentIsEscaped(): void
+    {
+        $this->router->addRoute('GET', '/users[.{format:json|xml}]', fn() => 'users');
+        $this->router->addRoute('GET', '/api[/v1.0]/ping', fn() => 'ping');
+        $this->router->addRoute('GET', '/lang/{id}[/c++]', fn() => 'cpp');
+
+        $this->assertFalse($this->router->match('GET', '/usersXjson'));
+        $this->assertSame(['format' => 'json'], $this->router->match('GET', '/users.json')['params'] ?? null);
+
+        $this->assertFalse($this->router->match('GET', '/api/v1-0/ping'));
+        $this->assertNotFalse($this->router->match('GET', '/api/v1.0/ping'));
+        $this->assertNotFalse($this->router->match('GET', '/api/ping'));
+
+        $this->assertSame(['id' => '5'], $this->router->match('GET', '/lang/5/c++')['params'] ?? null);
+        $this->assertFalse($this->router->match('GET', '/lang/5/ccc'));
+    }
+
+    public function testLiteralTextBeforeParameterIsEscaped(): void
+    {
+        $this->router->addRoute('GET', '/a.b/{id}', fn() => 'dot');
+
+        $this->assertNotFalse($this->router->match('GET', '/a.b/1'));
+        $this->assertFalse($this->router->match('GET', '/axb/1'));
+    }
+
+    public function testRawGroupAtStartOfPath(): void
+    {
+        $this->router->addRoute('GET', '(en|ru)/about', fn() => 'about');
+
+        $this->assertNotFalse($this->router->match('GET', 'en/about'));
+        $this->assertNotFalse($this->router->match('GET', 'ru/about'));
+        $this->assertFalse($this->router->match('GET', 'de/about'));
+    }
+
+    public function testRawGroupWithBraceQuantifier(): void
+    {
+        $this->router->addRoute('GET', '/(ab){2}', fn() => 'abab');
+
+        $this->assertNotFalse($this->router->match('GET', '/abab'));
+        $this->assertFalse($this->router->match('GET', '/ab'));
+    }
+
+    public function testParameterPatternWithClosingDelimitersInCharacterClass(): void
+    {
+        $this->router->addRoute('GET', '/tags/{tag:[^/)}]+}', fn() => 'tag');
+
+        $this->assertSame(['tag' => 'php'], $this->router->match('GET', '/tags/php')['params'] ?? null);
+        $this->assertFalse($this->router->match('GET', '/tags/a)b'));
+    }
+
+    public function testDuplicateParameterNameThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Duplicate parameter 'id' in: /{id}/{id}");
+
+        $this->router->addRoute('GET', '/{id}/{id}', fn() => '');
+    }
+
+    public function testInvalidParameterNameThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid parameter name '2' in: /a{2}");
+
+        $this->router->addRoute('GET', '/a{2}', fn() => '');
+    }
+
+    public function testInvalidParameterRegexThrowsOnMatch(): void
+    {
+        $this->router->addRoute('GET', '/{id:a{2,1}}', fn() => '');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route 'GET /{id:a{2,1}}' compiles to an invalid regular expression");
+
+        // Suppress the PCRE compilation warning; the exception carries the route
+        @$this->router->match('GET', '/aa');
+    }
+
+    public function testDuplicateStaticRouteThrows(): void
+    {
+        $this->router->addRoute('GET', '/a', fn() => 'first');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route 'GET /a' is already registered");
+
+        $this->router->addRoute('GET', '/a', fn() => 'second');
+    }
+
+    public function testDuplicateDynamicRouteThrows(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn() => 'first', ['group' => '/api']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route 'GET /api/users/{id}' is already registered");
+
+        $this->router->addRoute('GET', '/api/users/{id}', fn() => 'second');
+    }
+
+    public function testSamePathWithDifferentMethodsIsAllowed(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn() => 'show');
+        $this->router->addRoute('PUT', '/users/{id}', fn() => 'update');
+
+        $this->assertCount(2, $this->router->getRoutes());
+    }
+
+    public function testStaticRouteTakesPrecedenceOverEarlierDynamicRoute(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', 'show');
+        $this->router->addRoute('GET', '/users/me', 'me');
+
+        $this->assertSame('me', $this->router->match('GET', '/users/me')['handler'] ?? null);
+        $this->assertSame('show', $this->router->match('GET', '/users/1')['handler'] ?? null);
+    }
+
+    public function testDuplicateNameThrowsOnRegistration(): void
+    {
+        $this->router->addRoute('GET', '/a', fn() => 'a', ['name' => 'same']);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Route with name 'same' already exists");
+
+        $this->router->addRoute('GET', '/b', fn() => 'b', ['name' => 'same']);
+    }
+
+    public function testRejectedRouteDoesNotKeepItsName(): void
+    {
+        $this->router->addRoute('GET', '/a', fn() => 'a');
+
+        try {
+            $this->router->addRoute('GET', '/a', fn() => 'a', ['name' => 'dup']);
+        } catch (InvalidArgumentException) {
+        }
+
+        $this->assertNull($this->router->getRouteByName('dup'));
+    }
+
+    public function testRouteNamedAfterLookupIsFound(): void
+    {
+        $route = $this->router->addRoute('GET', '/x', fn() => 'x');
+        $this->assertNull($this->router->getRouteByName('x.show'));
+
+        $route->name('x.show');
+
+        $this->assertSame($route, $this->router->getRouteByName('x.show'));
+    }
+
+    public function testRenamedRouteIsRemovedFromOldName(): void
+    {
+        $route = $this->router->addRoute('GET', '/x', fn() => 'x')->name('old');
+
+        $route->name('new');
+
+        $this->assertNull($this->router->getRouteByName('old'));
+        $this->assertSame($route, $this->router->getRouteByName('new'));
+        $this->assertSame('new', $this->router->match('GET', '/x')['name'] ?? null);
+    }
+
+    public function testRejectedRenameKeepsOldName(): void
+    {
+        $this->router->addRoute('GET', '/a', fn() => 'a')->name('a');
+        $route = $this->router->addRoute('GET', '/b', fn() => 'b')->name('b');
+
+        try {
+            $route->name('a');
+            $this->fail('Expected duplicate name exception');
+        } catch (InvalidArgumentException) {
+        }
+
+        $this->assertSame('b', $route->getName());
+        $this->assertSame($route, $this->router->getRouteByName('b'));
+    }
+
+    public function testMiddlewareAddedAfterMatchIsReturned(): void
+    {
+        $route = $this->router->addRoute('GET', '/p[/]', fn() => 'p');
+        $this->router->match('GET', '/p');
+
+        $route->middleware('auth');
+
+        $this->assertSame(['auth'], $this->router->match('GET', '/p')['middlewares'] ?? null);
+    }
+
+    public function testOptionsRoute(): void
+    {
+        $this->router->addRoute('OPTIONS', '/{any:.*}', fn() => 'preflight');
+
+        $match = $this->router->match('OPTIONS', '/api/users');
+        $this->assertNotFalse($match);
+        $this->assertSame(['any' => 'api/users'], $match['params']);
+    }
+
+    public function testGetAllowedMethods(): void
+    {
+        $this->router->addRoute('GET', '/users/{id}', fn() => 'show');
+        $this->router->addRoute('PUT', '/users/{id}', fn() => 'update');
+        $this->router->addRoute('POST', '/users', fn() => 'store');
+
+        $this->assertSame(['GET', 'HEAD', 'PUT'], $this->router->getAllowedMethods('/users/1'));
+        $this->assertSame(['POST'], $this->router->getAllowedMethods('/users'));
+        $this->assertSame([], $this->router->getAllowedMethods('/missing'));
     }
 }

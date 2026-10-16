@@ -71,20 +71,15 @@ $dashboard = $router->getRouteByName('admin.dashboard');
 
 ## Duplicate Name Protection
 
-The router throws an exception for duplicate names:
+The router throws an exception as soon as a second route takes an existing name:
 
 ```php
 $router->get('/users', [UserController::class, 'index'])->name('users');
 $router->get('/members', [MemberController::class, 'index'])->name('users');
-
-// Later when accessing:
-$router->getRouteByName('users');
 // throws InvalidArgumentException: Route with name 'users' already exists
 ```
 
-::: warning
-The exception is thrown lazily when `getRouteByName()` is called, not when defining routes.
-:::
+Renaming a route with `->name()` updates the index, so `getRouteByName()` always reflects the current names.
 
 ---
 
@@ -105,7 +100,7 @@ class UrlGenerator
             throw new RuntimeException("Route '$name' not found");
         }
         
-        $path = $route->group . $route->path;
+        $path = $route->fullPath;
         
         foreach ($params as $key => $value) {
             $path = preg_replace('/\{' . $key . '(?::[^}]+)?\}/', $value, $path);
