@@ -1,0 +1,18 @@
+{
+    "name": "solophp/router-benchmarks",
+    "description": "Isolated dependencies for the routing benchmarks",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/psr7": "2.13.2",
+        "leafs/leaf": "v5.0.1",
+        "slim/slim": "4.15.3",
+        "solophp/contracts": "1.5.0",
+        "symfony/routing": "v7.4.21"
+    },
+    "config": {
+        "allow-plugins": false,
+        "sort-packages": true
+    }
+}

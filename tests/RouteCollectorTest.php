@@ -10,6 +10,8 @@ use InvalidArgumentException;
 
 class RouteCollectorTest extends TestCase
 {
+    use ResolvesRoutes;
+
     private RouteCollector $collector;
 
     protected function setUp(): void
@@ -17,26 +19,38 @@ class RouteCollectorTest extends TestCase
         $this->collector = new RouteCollector();
     }
 
+    public function testGetRoutesReturnsDefinitionsInRegistrationOrder(): void
+    {
+        $users = $this->collector->get('/users', 'index');
+        $admin = null;
+        $this->collector->group('/admin', function (RouteCollector $routes) use (&$admin): void {
+            $admin = $routes->post('/users', 'store');
+        });
+
+        $this->assertSame([$users, $admin], $this->collector->getRoutes());
+        $this->assertSame('/admin/users', $admin->fullPath);
+    }
+
     public function testPostRoute(): void
     {
         $this->collector->post('/users', function () {
             return "Create user";
         });
-        $match = $this->collector->match('POST', '/users');
+        $match = $this->match($this->collector, 'POST', '/users');
         $this->assertNotFalse($match);
     }
 
     public function testOptionsRoute(): void
     {
         $this->collector->options('/users', fn() => '');
-        $match = $this->collector->match('OPTIONS', '/users');
+        $match = $this->match($this->collector, 'OPTIONS', '/users');
         $this->assertNotFalse($match);
     }
 
     public function testHeadRoute(): void
     {
         $this->collector->head('/health', fn() => '');
-        $match = $this->collector->match('HEAD', '/health');
+        $match = $this->match($this->collector, 'HEAD', '/health');
         $this->assertNotFalse($match);
     }
 
@@ -45,7 +59,7 @@ class RouteCollectorTest extends TestCase
         $this->collector->put('/users/{id}', function ($id) {
             return "Update user: $id";
         });
-        $match = $this->collector->match('PUT', '/users/7');
+        $match = $this->match($this->collector, 'PUT', '/users/7');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '7'], $match['params']);
     }
@@ -55,7 +69,7 @@ class RouteCollectorTest extends TestCase
         $this->collector->patch('/users/{id}', function ($id) {
             return "Patch user: $id";
         });
-        $match = $this->collector->match('PATCH', '/users/3');
+        $match = $this->match($this->collector, 'PATCH', '/users/3');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '3'], $match['params']);
     }
@@ -65,7 +79,7 @@ class RouteCollectorTest extends TestCase
         $this->collector->delete('/users/{id}', function ($id) {
             return "Delete user: $id";
         });
-        $match = $this->collector->match('DELETE', '/users/9');
+        $match = $this->match($this->collector, 'DELETE', '/users/9');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '9'], $match['params']);
     }
@@ -76,11 +90,11 @@ class RouteCollectorTest extends TestCase
             return "User: $id";
         })->name('user.show');
 
-        $route = $this->collector->getRouteByName('user.show');
+        $route = $this->collector->build()->getRouteByName('user.show');
         $this->assertNotNull($route);
-        $this->assertEquals('user.show', $route->getName());
+        $this->assertEquals('user.show', $route->name);
 
-        $match = $this->collector->match('GET', '/users/5');
+        $match = $this->match($this->collector, 'GET', '/users/5');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '5'], $match['params']);
         $this->assertEquals('user.show', $match['name']);
@@ -95,15 +109,15 @@ class RouteCollectorTest extends TestCase
             return 'Admin';
         })->name('admin')->middleware($authMiddleware, $logMiddleware);
 
-        $match = $this->collector->match('GET', '/admin');
+        $match = $this->match($this->collector, 'GET', '/admin');
         $this->assertNotFalse($match);
         $this->assertCount(2, $match['middlewares']);
         $this->assertContains($authMiddleware, $match['middlewares']);
         $this->assertContains($logMiddleware, $match['middlewares']);
 
-        $route = $this->collector->getRouteByName('admin');
+        $route = $this->collector->build()->getRouteByName('admin');
         $this->assertNotNull($route);
-        $this->assertEquals('admin', $route->getName());
+        $this->assertEquals('admin', $route->name);
     }
 
     public function testFluentAttribute(): void
@@ -113,7 +127,7 @@ class RouteCollectorTest extends TestCase
             ->attribute('permission', 'reports.view')
             ->attribute('plan', 'pro');
 
-        $match = $this->collector->match('GET', '/reports');
+        $match = $this->match($this->collector, 'GET', '/reports');
         $this->assertNotFalse($match);
         $this->assertSame(['permission' => 'reports.view', 'plan' => 'pro'], $match['attributes']);
     }
@@ -130,6 +144,7 @@ class RouteCollectorTest extends TestCase
         $this->collector->get('/users', function () {
             return "Users list";
         })->name('user.show');
+        $this->collector->build();
     }
 
     public function testRouteGroupWithMiddleware(): void
@@ -144,7 +159,7 @@ class RouteCollectorTest extends TestCase
             });
         }, [$middleware]);
 
-        $match = $this->collector->match('GET', '/admin/dashboard');
+        $match = $this->match($this->collector, 'GET', '/admin/dashboard');
         $this->assertNotFalse($match);
         $this->assertContains($middleware, $match['middlewares']);
     }
@@ -159,7 +174,7 @@ class RouteCollectorTest extends TestCase
             });
         });
 
-        $match = $this->collector->match('GET', '/api/v1/users/123');
+        $match = $this->match($this->collector, 'GET', '/api/v1/users/123');
         $this->assertNotFalse($match);
         $this->assertEquals(['id' => '123'], $match['params']);
     }
@@ -176,7 +191,7 @@ class RouteCollectorTest extends TestCase
             }, [$inner]);
         }, [$outer]);
 
-        $match = $this->collector->match('GET', '/api/v1/ping');
+        $match = $this->match($this->collector, 'GET', '/api/v1/ping');
         $this->assertNotFalse($match);
         $this->assertSame(
             [$outer, $inner, $route],
@@ -198,8 +213,8 @@ class RouteCollectorTest extends TestCase
             $router->get('/y', fn() => 'y');
         }, [$b]);
 
-        $matchA = $this->collector->match('GET', '/a/x');
-        $matchB = $this->collector->match('GET', '/b/y');
+        $matchA = $this->match($this->collector, 'GET', '/a/x');
+        $matchB = $this->match($this->collector, 'GET', '/b/y');
 
         $this->assertSame([$a], $matchA['middlewares']);
         $this->assertSame([$b], $matchB['middlewares']);
@@ -220,16 +235,16 @@ class RouteCollectorTest extends TestCase
 
         $this->assertSame(
             ['permission' => 'admin', 'plan' => 'basic', 'tags' => ['admin']],
-            $this->collector->match('GET', '/admin/users')['attributes'] ?? null
+            $this->match($this->collector, 'GET', '/admin/users')['attributes'] ?? null
         );
         $this->assertSame(
             ['permission' => 'reports.view', 'plan' => 'basic', 'tags' => ['reports']],
-            $this->collector->match('GET', '/admin/reports/daily')['attributes'] ?? null,
+            $this->match($this->collector, 'GET', '/admin/reports/daily')['attributes'] ?? null,
             'Inner group must replace outer values by key, not merge them'
         );
         $this->assertSame(
             ['permission' => 'reports.view', 'plan' => 'pro', 'tags' => ['reports']],
-            $this->collector->match('GET', '/admin/reports/export')['attributes'] ?? null,
+            $this->match($this->collector, 'GET', '/admin/reports/export')['attributes'] ?? null,
             'Route attribute must replace the group value'
         );
     }
@@ -256,13 +271,37 @@ class RouteCollectorTest extends TestCase
         }, [], ['AuthMiddleware']);
     }
 
+    public function testAddRouteRejectsMiddlewareWithStringKeys(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            "Route 'GET /admin/users' middleware has key 'permission'; pass attributes in the 'attributes' option"
+        );
+
+        $this->collector->group('/admin', function (RouteCollector $router): void {
+            $router->addRoute('GET', '/users', 'users', ['middlewares' => ['permission' => 'users.view']]);
+        });
+    }
+
+    public function testAddRouteMiddlewareIsAList(): void
+    {
+        $this->collector->group('/admin', function (RouteCollector $router): void {
+            $router->addRoute('GET', '/users', 'users', ['middlewares' => array_filter([null, 'auth', null, 'log'])]);
+        }, ['group']);
+
+        $this->assertSame(
+            ['group', 'auth', 'log'],
+            $this->match($this->collector, 'GET', '/admin/users')['middlewares'] ?? null
+        );
+    }
+
     public function testGroupAcceptsMiddlewareWithNonSequentialIntegerKeys(): void
     {
         $this->collector->group('/admin', function (RouteCollector $router): void {
             $router->get('/users', 'users');
         }, array_filter([null, 'auth']));
 
-        $this->assertSame(['auth'], $this->collector->match('GET', '/admin/users')['middlewares'] ?? null);
+        $this->assertSame(['auth'], $this->match($this->collector, 'GET', '/admin/users')['middlewares'] ?? null);
     }
 
     public function testGroupRestoresStateWhenCallbackThrows(): void
@@ -276,11 +315,11 @@ class RouteCollectorTest extends TestCase
 
         $this->collector->get('/public', 'public');
 
-        $match = $this->collector->match('GET', '/public');
+        $match = $this->match($this->collector, 'GET', '/public');
         $this->assertNotFalse($match);
         $this->assertSame([], $match['middlewares']);
         $this->assertSame([], $match['attributes']);
-        $this->assertFalse($this->collector->match('GET', '/admin/public'));
+        $this->assertFalse($this->match($this->collector, 'GET', '/admin/public'));
     }
 
     public function testOptionalLanguagePrefixWithSingleGroup(): void
@@ -296,21 +335,21 @@ class RouteCollectorTest extends TestCase
         });
 
         // Should match without language prefix
-        $result = $this->collector->match('GET', '/admin/users');
+        $result = $this->match($this->collector, 'GET', '/admin/users');
         $this->assertNotFalse($result);
         $this->assertEquals([], $result['params']); // Empty lang is filtered out
 
         // Should match with language prefix
-        $result = $this->collector->match('GET', '/en/admin/users');
+        $result = $this->match($this->collector, 'GET', '/en/admin/users');
         $this->assertNotFalse($result);
         $this->assertEquals(['lang' => 'en/'], $result['params']);
 
-        $result = $this->collector->match('GET', '/ua/admin/posts');
+        $result = $this->match($this->collector, 'GET', '/ua/admin/posts');
         $this->assertNotFalse($result);
         $this->assertEquals(['lang' => 'ua/'], $result['params']);
 
         // Should NOT match with invalid language code (3 letters)
-        $result = $this->collector->match('GET', '/eng/admin/users');
+        $result = $this->match($this->collector, 'GET', '/eng/admin/users');
         $this->assertFalse($result);
     }
 
@@ -321,32 +360,32 @@ class RouteCollectorTest extends TestCase
             $router->get('/documentation', 'docs');
         });
 
-        $match = $this->collector->match('GET', '');
+        $match = $this->match($this->collector, 'GET', '');
         $this->assertNotFalse($match);
         $this->assertSame('home', $match['handler']);
         $this->assertSame([], $match['params']);
 
-        $match = $this->collector->match('GET', '/');
+        $match = $this->match($this->collector, 'GET', '/');
         $this->assertNotFalse($match);
         $this->assertSame('home', $match['handler']);
         $this->assertSame([], $match['params']);
 
-        $match = $this->collector->match('GET', '/en');
+        $match = $this->match($this->collector, 'GET', '/en');
         $this->assertNotFalse($match);
         $this->assertSame('home', $match['handler']);
         $this->assertSame(['lang' => 'en'], $match['params']);
 
-        $match = $this->collector->match('GET', '/en/');
+        $match = $this->match($this->collector, 'GET', '/en/');
         $this->assertNotFalse($match);
         $this->assertSame('home', $match['handler']);
         $this->assertSame(['lang' => 'en'], $match['params']);
 
-        $match = $this->collector->match('GET', '/documentation');
+        $match = $this->match($this->collector, 'GET', '/documentation');
         $this->assertNotFalse($match);
         $this->assertSame('docs', $match['handler']);
         $this->assertSame([], $match['params']);
 
-        $match = $this->collector->match('GET', '/en/documentation');
+        $match = $this->match($this->collector, 'GET', '/en/documentation');
         $this->assertNotFalse($match);
         $this->assertSame('docs', $match['handler']);
         $this->assertSame(['lang' => 'en'], $match['params']);

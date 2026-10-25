@@ -5,16 +5,27 @@ declare(strict_types=1);
 namespace Solo\Router;
 
 use InvalidArgumentException;
+use Solo\Router\Compilers\RouteCompiler;
 use Solo\Router\Enums\HttpMethod;
 
 /**
  * Route collector with fluent API for route configuration.
+ *
+ * @phpstan-type RouteOptions array{
+ *     group?: string,
+ *     middlewares?: array<int, callable|string>,
+ *     name?: string|null,
+ *     attributes?: array<string, mixed>
+ * }
  */
-final class RouteCollector extends Router
+final class RouteCollector
 {
+    /** @var list<RouteDefinition> */
+    private array $routes = [];
+
     private string $group = '';
 
-    /** @var array<int, callable|string> */
+    /** @var list<callable|string> */
     private array $groupMiddleware = [];
 
     /** @var array<string, mixed> */
@@ -23,91 +34,107 @@ final class RouteCollector extends Router
     /**
      * Adds a GET route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function get(string $path, callable|array|string $handler): Route
+    public function get(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::GET, $path, $handler);
+        return $this->add(HttpMethod::GET, $path, $handler);
     }
 
     /**
      * Adds a HEAD route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function head(string $path, callable|array|string $handler): Route
+    public function head(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::HEAD, $path, $handler);
+        return $this->add(HttpMethod::HEAD, $path, $handler);
     }
 
     /**
      * Adds a POST route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function post(string $path, callable|array|string $handler): Route
+    public function post(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::POST, $path, $handler);
+        return $this->add(HttpMethod::POST, $path, $handler);
     }
 
     /**
      * Adds a PUT route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function put(string $path, callable|array|string $handler): Route
+    public function put(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::PUT, $path, $handler);
+        return $this->add(HttpMethod::PUT, $path, $handler);
     }
 
     /**
      * Adds a PATCH route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function patch(string $path, callable|array|string $handler): Route
+    public function patch(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::PATCH, $path, $handler);
+        return $this->add(HttpMethod::PATCH, $path, $handler);
     }
 
     /**
      * Adds a DELETE route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function delete(string $path, callable|array|string $handler): Route
+    public function delete(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::DELETE, $path, $handler);
+        return $this->add(HttpMethod::DELETE, $path, $handler);
     }
 
     /**
      * Adds an OPTIONS route.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
      */
-    public function options(string $path, callable|array|string $handler): Route
+    public function options(string $path, mixed $handler): RouteDefinition
     {
-        return $this->addHttpRoute(HttpMethod::OPTIONS, $path, $handler);
+        return $this->add(HttpMethod::OPTIONS, $path, $handler);
     }
 
     /**
-     * Adds an HTTP route with the specified method.
+     * Declares a route using the active group and any route-specific options.
      *
-     * @param callable|array{class-string, string}|class-string $handler
+     * @param mixed $handler Opaque application handler; the router does not execute it
+     * @param RouteOptions $options Group prefix, middlewares, name and attributes
+     * @throws InvalidArgumentException If the method is unsupported, middleware has string keys
+     *                                  or attribute keys are integers
      */
-    private function addHttpRoute(
-        HttpMethod $method,
+    public function addRoute(
+        string $method,
         string $path,
-        callable|array|string $handler
-    ): Route {
-        return $this->addRouteObject(new Route(
-            method: $method,
-            group: $this->group,
-            path: $path,
-            handler: $handler,
-            middlewares: $this->groupMiddleware,
-            attributes: $this->groupAttributes
-        ));
+        mixed $handler,
+        array $options = []
+    ): RouteDefinition {
+        $httpMethod = HttpMethod::tryFrom(strtoupper($method))
+            ?? throw new InvalidArgumentException("Unsupported HTTP method: $method");
+
+        return $this->add($httpMethod, $path, $handler, $options);
+    }
+
+    /**
+     * @return list<RouteDefinition>
+     */
+    public function getRoutes(): array
+    {
+        return $this->routes;
+    }
+
+    /**
+     * Compiles a new snapshot. Later changes to this collector do not alter the router.
+     */
+    public function build(): Router
+    {
+        return (new RouteCompiler())->compile($this->routes);
     }
 
     /**
@@ -127,15 +154,8 @@ final class RouteCollector extends Router
         array $middlewares = [],
         array $attributes = []
     ): void {
-        foreach (array_keys($middlewares) as $key) {
-            // @phpstan-ignore function.impossibleType (runtime guard: attributes passed in the middleware slot)
-            if (is_string($key)) {
-                throw new InvalidArgumentException(
-                    "Group '$prefix' middleware has key '$key'; pass attributes as the fourth argument"
-                );
-            }
-        }
-        Route::assertAttributeKeys($attributes);
+        self::assertMiddlewareKeys($middlewares, "Group '$prefix'", 'as the fourth argument');
+        RouteDefinition::assertAttributeKeys($attributes);
 
         $saved = [$this->group, $this->groupMiddleware, $this->groupAttributes];
 
@@ -147,6 +167,60 @@ final class RouteCollector extends Router
             $callback($this);
         } finally {
             [$this->group, $this->groupMiddleware, $this->groupAttributes] = $saved;
+        }
+    }
+
+    /**
+     * @param RouteOptions $options
+     * @throws InvalidArgumentException If middleware has string keys or attribute keys are integers
+     */
+    private function add(HttpMethod $method, string $path, mixed $handler, array $options = []): RouteDefinition
+    {
+        $group = $this->group;
+        $middlewares = $this->groupMiddleware;
+        $attributes = $this->groupAttributes;
+        // Most routes have no options: they take the group's values as they are
+        if ($options !== []) {
+            $group .= $options['group'] ?? '';
+            if (isset($options['middlewares'])) {
+                self::assertMiddlewareKeys(
+                    $options['middlewares'],
+                    "Route '{$method->value} {$group}{$path}'",
+                    "in the 'attributes' option"
+                );
+                $middlewares = [...$middlewares, ...$options['middlewares']];
+            }
+            $attributes = array_replace($attributes, $options['attributes'] ?? []);
+        }
+
+        $route = new RouteDefinition(
+            method: $method,
+            group: $group,
+            path: $path,
+            handler: $handler,
+            middlewares: $middlewares,
+            name: $options['name'] ?? null,
+            attributes: $attributes
+        );
+        $this->routes[] = $route;
+
+        return $route;
+    }
+
+    /**
+     * Middleware lists are positional; a string key usually means attributes in the wrong place.
+     *
+     * @param array<mixed> $middlewares
+     * @throws InvalidArgumentException If a key is a string
+     */
+    private static function assertMiddlewareKeys(array $middlewares, string $owner, string $attributesHint): void
+    {
+        foreach (array_keys($middlewares) as $key) {
+            if (is_string($key)) {
+                throw new InvalidArgumentException(
+                    "$owner middleware has key '$key'; pass attributes $attributesHint"
+                );
+            }
         }
     }
 }

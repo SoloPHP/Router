@@ -9,6 +9,7 @@ Thumbs.db
 
 # Testing
 .phpunit.result.cache
+.phpunit.cache/
 coverage/
 tests/coverage/
 

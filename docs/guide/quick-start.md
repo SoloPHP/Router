@@ -1,119 +1,81 @@
 # Quick Start
 
-## HTTP Methods
+Configure routes on a `RouteCollector`, build a router, then resolve requests. These examples use the v4 API; see [migration](/guide/migration-v4) for changes from v3.
 
-Register routes for different HTTP methods:
+## Define routes
 
 ```php
 use Solo\Router\RouteCollector;
 
-$router = new RouteCollector();
-
-$router->get('/users', [UserController::class, 'index']);
-$router->post('/users', [UserController::class, 'store']);
-$router->put('/users/{id}', [UserController::class, 'update']);
-$router->patch('/users/{id}', [UserController::class, 'patch']);
-$router->delete('/users/{id}', [UserController::class, 'destroy']);
+$routes = new RouteCollector();
+$routes->get('/users', [UserController::class, 'index']);
+$routes->get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+$routes->post('/users', [UserController::class, 'store']);
+$routes->put('/users/{id}', [UserController::class, 'update']);
+$routes->patch('/users/{id}', [UserController::class, 'patch']);
+$routes->delete('/users/{id}', [UserController::class, 'destroy']);
 ```
 
-::: tip HEAD Requests
-HEAD requests automatically match GET routes per RFC 7231 — no extra configuration needed. Use `$router->head()` only if you need a dedicated HEAD handler.
-:::
+HEAD requests fall back to GET routes if no explicit HEAD route matches the path. Use `$routes->head()` for a dedicated HEAD handler.
 
-## Route Parameters
+## Configure metadata
 
-Capture dynamic segments with curly braces:
+Registration returns a mutable `RouteDefinition`. Chain fluent setters:
 
 ```php
-// Required parameter
-$router->get('/users/{id}', [UserController::class, 'show']);
-
-// Multiple parameters
-$router->get('/posts/{postId}/comments/{commentId}', [CommentController::class, 'show']);
+$routes->get('/profile', [ProfileController::class, 'show'])
+    ->name('profile.show')
+    ->middleware(AuthMiddleware::class)
+    ->attribute('permission', 'profile.view');
 ```
 
-## Matching Requests
-
-Use `match()` to find a route for a request:
+## Group routes
 
 ```php
-$match = $router->match('GET', '/users/123');
+$routes->group('/api', function (RouteCollector $routes) {
+    $routes->get('/posts', [PostController::class, 'index']);
+    $routes->get('/posts/{id}', [PostController::class, 'show']);
+}, [ApiMiddleware::class], ['area' => 'api']);
+```
 
-if ($match) {
-    $handler = $match['handler'];     // [UserController::class, 'show']
-    $params = $match['params'];       // ['id' => '123']
-    $middlewares = $match['middlewares'];
-    $name = $match['name'];           // route name or null
-    $attributes = $match['attributes']; // custom route data, [] if none
+Prefixes concatenate. Middleware accumulates from outer groups to the route; attributes are replaced by key when an inner group or route overrides them.
+
+## Build once configuration is complete
+
+```php
+$router = $routes->build();
+```
+
+Building validates path syntax, regexes, duplicate paths and names, and routes that could never match because an earlier route with the same method has the same pattern. The returned `Router` contains runtime snapshots. Later registrations or changes to definitions affect subsequent builds only.
+
+## Resolve a request
+
+```php
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
+
+$result = $router->resolve('GET', '/users/123');
+
+if ($result instanceof Matched) {
+    $handler = $result->route->handler;
+    $params = $result->params; // ['id' => '123']
+    $middlewares = $result->route->middlewares;
+    $name = $result->route->name;
+    $attributes = $result->route->attributes;
+    // Your application executes middleware and the handler.
+} elseif ($result instanceof MethodNotAllowed) {
+    http_response_code(405);
+    header('Allow: ' . implode(', ', $result->allowedMethods));
 } else {
-    // No matching route found
+    http_response_code(404);
 }
 ```
 
-## Fluent Configuration
+Every result is an object, so test its type rather than its truthiness. Pass the URI path without a query string; captured parameters are returned without decoding.
 
-Chain `name()` and `middleware()` calls:
+## Next steps
 
-```php
-$router->get('/profile', [ProfileController::class, 'show'])
-    ->name('profile.show')
-    ->middleware(AuthMiddleware::class);
-
-$router->post('/posts', [PostController::class, 'store'])
-    ->name('posts.store')
-    ->middleware(AuthMiddleware::class, ThrottleMiddleware::class);
-```
-
-## Route Groups
-
-Group routes with shared prefix and middleware:
-
-```php
-$router->group('/api', function(RouteCollector $router) {
-    $router->get('/users', [ApiUserController::class, 'index']);
-    $router->get('/posts', [ApiPostController::class, 'index']);
-}, [ApiMiddleware::class]);
-
-// Matches: /api/users, /api/posts
-```
-
-## Complete Example
-
-```php
-use Solo\Router\RouteCollector;
-
-$router = new RouteCollector();
-
-// Public routes
-$router->get('/', [HomeController::class, 'index'])->name('home');
-$router->get('/about', [PageController::class, 'about'])->name('about');
-
-// Auth routes
-$router->post('/login', [AuthController::class, 'login'])->name('login');
-$router->post('/logout', [AuthController::class, 'logout'])
-    ->name('logout')
-    ->middleware(AuthMiddleware::class);
-
-// API routes
-$router->group('/api/v1', function(RouteCollector $router) {
-    $router->get('/users', [UserController::class, 'index']);
-    $router->get('/users/{id}', [UserController::class, 'show']);
-    $router->post('/users', [UserController::class, 'store']);
-}, [ApiAuthMiddleware::class, JsonMiddleware::class]);
-
-// Admin routes
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/dashboard', [AdminController::class, 'dashboard']);
-    
-    $router->group('/users', function(RouteCollector $router) {
-        $router->get('/', [AdminUserController::class, 'index']);
-        $router->get('/{id}/edit', [AdminUserController::class, 'edit']);
-    });
-}, [AuthMiddleware::class, AdminMiddleware::class]);
-```
-
-## Next Steps
-
-- [Handlers](/guide/handlers) — Different handler types
-- [Route Parameters](/features/parameters) — Parameters with patterns
-- [Optional Segments](/features/optional-segments) — Advanced patterns
+- [Handlers](/guide/handlers) — Dispatching in your application
+- [Parameters](/features/parameters) — Constraints and captured values
+- [Optional segments](/features/optional-segments) — Advanced patterns
+- [Migration from v3](/guide/migration-v4) — Breaking changes and integrations

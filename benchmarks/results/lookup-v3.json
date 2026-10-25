@@ -1,0 +1,522 @@
+{
+    "recorded_at_utc": "2026-10-25T06:20:44+00:00",
+    "unit": "microseconds per lookup, median",
+    "runs": 7,
+    "lookups_per_run": 10000,
+    "solo_source": "/v3-src",
+    "environment": {
+        "php": "8.4.21",
+        "os": "Linux aarch64",
+        "opcache": true,
+        "jit": "disable",
+        "pcre": "10.44 2024-06-07",
+        "pcre_jit": true,
+        "xdebug": false
+    },
+    "results": [
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.18
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.764
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.485
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "last",
+            "solo": 1.091
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 1.869
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "405",
+            "solo": 1.102
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.777
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.192
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 4.696
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 2.404
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 8.634
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 16.822
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 8.675
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 4.627
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.177
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.756
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.48
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "last",
+            "solo": 1.098
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 1.886
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "405",
+            "solo": 1.105
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.773
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.186
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 4.6
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 2.391
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 8.625
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 16.944
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 8.807
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 4.635
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "static",
+            "solo": 3.613
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 3.794
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 3.777
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "last",
+            "solo": 7.082
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 13.178
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "405",
+            "solo": 6.416
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "head",
+            "solo": 3.822
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 47.225
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 48.423
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 50.989
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 94.246
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 183.77
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 88.761
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 48.51
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "static",
+            "solo": 3.246
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 3.416
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 3.387
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "last",
+            "solo": 6.293
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 11.782
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "405",
+            "solo": 5.821
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "head",
+            "solo": 3.408
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 41.568
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 43.698
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 43.179
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 87.006
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 167.154
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 80.275
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 43.76
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "static",
+            "solo": 3.654
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 3.784
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 3.767
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "last",
+            "solo": 7.124
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 13.377
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "405",
+            "solo": 6.4
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "head",
+            "solo": 3.827
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 48.098
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 49.12
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 49.449
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 95.156
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 190.814
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 90.979
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 49.624
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.182
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.756
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.485
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "last",
+            "solo": 1.099
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 1.885
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "405",
+            "solo": 1.114
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.795
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.186
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 4.645
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 2.447
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 8.806
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 17.034
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 8.813
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 4.681
+        }
+    ]
+}

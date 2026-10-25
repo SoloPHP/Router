@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Solo Router
   text: High-Performance PHP Router
-  tagline: Middleware support, route groups, named routes, and advanced optional segment patterns.
+  tagline: Fluent definitions, immutable runtime routes, typed results, and advanced optional segment patterns.
   image:
     src: /logo.svg
     alt: Solo Router
@@ -19,7 +19,7 @@ hero:
 features:
   - icon: ⚡
     title: High Performance
-    details: Static routes use O(1) hash lookup. Dynamic routes are prefiltered by their literal prefix.
+    details: Dynamic routes of each method compile into one regex shaped as a prefix tree, so lookup time barely grows with the route count. A route cache loads prebuilt routers from OPcache.
   - icon: 🔗
     title: Fluent API
     details: Chainable ->name(), ->middleware() and ->attribute() methods for clean route definitions.
@@ -34,13 +34,13 @@ features:
     details: Optional segments in any position, nested optionals, regex constraints.
   - icon: 🏷️
     title: Named Routes
-    details: Easy route referencing by name for URL generation.
+    details: Retrieve immutable runtime routes by their final names.
   - icon: 🧩
     title: Route Attributes
-    details: Custom data such as permissions on routes and groups, returned by match().
+    details: Custom route data such as permissions, available on typed match results.
   - icon: 📡
     title: HEAD Support
-    details: Automatic fallback to GET routes for HEAD requests per RFC 7231.
+    details: Automatic fallback to GET routes for HEAD requests per RFC 9110.
 ---
 
 <style>
@@ -57,43 +57,43 @@ features:
 }
 </style>
 
+## Version 4.0.0
+
+Solo Router 4.0.0 separates route configuration from request resolution. The core requires PHP 8.3 or later, with no external runtime packages. See [installation](/guide/installation), [migration from v3](/guide/migration-v4), and [performance measurements](/guide/performance).
+
 ## Quick Example
 
 ```php
 use Solo\Router\RouteCollector;
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
 
-$router = new RouteCollector();
+$routes = new RouteCollector();
+$routes->get('/users/{id}', [UserController::class, 'show'])
+    ->name('users.show')
+    ->middleware(AuthMiddleware::class);
 
-// Simple routes
-$router->get('/users', [UserController::class, 'index']);
-$router->get('/users/{id}', [UserController::class, 'show']);
+$router = $routes->build();
+$result = $router->resolve('GET', '/users/123');
 
-// Route with middleware and name
-$router->post('/posts', [PostController::class, 'store'])
-    ->middleware(AuthMiddleware::class)
-    ->name('posts.store');
-
-// Route groups
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/dashboard', [AdminController::class, 'dashboard']);
-    $router->get('/users', [AdminController::class, 'users']);
-}, [AuthMiddleware::class]);
-
-// Match request
-$match = $router->match('GET', '/users/123');
-if ($match) {
-    $handler = $match['handler'];
-    $params = $match['params'];       // ['id' => '123']
-    $middlewares = $match['middlewares'];
-    $name = $match['name'];           // route name or null
-    $attributes = $match['attributes']; // custom route data, [] if none
+if ($result instanceof Matched) {
+    $handler = $result->route->handler;
+    $params = $result->params; // ['id' => '123']
+    $middlewares = $result->route->middlewares;
+} elseif ($result instanceof MethodNotAllowed) {
+    http_response_code(405);
+    header('Allow: ' . implode(', ', $result->allowedMethods));
+} else {
+    http_response_code(404);
 }
 ```
 
-## Installation
+Configuration changes affect subsequent builds only. The router returns metadata; your application executes middleware and handlers.
 
 ```bash
-composer require solophp/router
+composer require "solophp/router:^4.0"
 ```
 
-**Requirements:** PHP 8.1+
+**Requirements:** PHP 8.3 or later and Composer.
+
+[Get started](/guide/quick-start) · [Runtime API](/api/router) · [Migration guide](/guide/migration-v4)

@@ -1,0 +1,46 @@
+{
+    "recorded_at_utc": "2026-10-25T17:00:33+00:00",
+    "unit": "milliseconds per registration, build and one lookup, median",
+    "solo_source": "/v3-src",
+    "environment": {
+        "php": "8.4.21",
+        "os": "Linux aarch64",
+        "opcache": true,
+        "jit": "disable",
+        "pcre": "10.44 2024-06-07",
+        "pcre_jit": true,
+        "xdebug": false
+    },
+    "results": [
+        {
+            "layout": "separate",
+            "routes": 100,
+            "solo": 0.0653
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "solo": 0.6338
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "solo": 0.1132
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "solo": 1.1606
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "solo": 0.1485
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "solo": 1.4854
+        }
+    ]
+}
