@@ -1,146 +1,62 @@
 # Router
 
-Base router class with optimized route matching.
+The runtime router is a snapshot of definitions collected by [RouteCollector](/api/route-collector). Build it after registering routes:
 
 ```php
-use Solo\Router\Router;
+use Solo\Router\RouteCollector;
 
-$router = new Router();
+$routes = new RouteCollector();
+$routes->get('/users/{id}', [UserController::class, 'show'])->name('users.show');
+$router = $routes->build();
 ```
 
-## Constructor
+`Router` has no registration methods or `match()` method. Configure the collector, then resolve requests on the built router. Later edits to the collector do not change an existing router.
+
+## resolve()
 
 ```php
-public function __construct(array $routes = [])
-```
-
-Create a new Router instance with optional initial routes.
-
-```php
-// Empty router
-$router = new Router();
-
-// With predefined routes
-$routes = [
-    new Route(HttpMethod::GET, '', '/users', [UserController::class, 'index']),
-];
-$router = new Router($routes);
-```
-
----
-
-## addRoute()
-
-```php
-public function addRoute(
+public function resolve(
     string $method,
-    string $path,
-    mixed $handler,
-    array $options = []
-): Route
+    string $uri
+): Matched|NotFound|MethodNotAllowed
 ```
 
-Add a new route to the router.
+The three result classes are in `Solo\Router\Results`:
 
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$method` | `string` | HTTP method (GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS) |
-| `$path` | `string` | Route path pattern |
-| `$handler` | `mixed` | Route handler |
-| `$options` | `array` | Optional settings |
-
-**Options array:**
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `group` | `string` | `''` | URL prefix |
-| `middlewares` | `array` | `[]` | Middleware array |
-| `name` | `string\|null` | `null` | Route name |
-| `attributes` | `array` | `[]` | Custom [attributes](/features/attributes) |
-
-**Example:**
+| Result | Readonly properties | Meaning |
+|--------|---------------------|---------|
+| `Matched` | `Route $route`, `array $params` | A route accepts this method and path |
+| `NotFound` | None | No route accepts this path |
+| `MethodNotAllowed` | `array $allowedMethods` | The path exists for other methods |
 
 ```php
-$router->addRoute('GET', '/users/{id}', [UserController::class, 'show'], [
-    'group' => '/api',
-    'middlewares' => [AuthMiddleware::class],
-    'name' => 'users.show',
-    'attributes' => ['permission' => 'users.view'],
-]);
-```
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
 
-**Throws:**
+$result = $router->resolve($method, $uri);
 
-- `InvalidArgumentException` — If HTTP method is not supported
-- `InvalidArgumentException` — If the path is invalid (unmatched brackets, invalid or duplicate parameter names)
-- `InvalidArgumentException` — If a route with the same method and full path, or with the same name, is already registered
-- `InvalidArgumentException` — If an attribute key is an integer or an integer string such as `'42'`
-
----
-
-## match()
-
-```php
-public function match(string $method, string $uri): array|false
-```
-
-Match a request against registered routes.
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$method` | `string` | HTTP method, as sent by the client |
-| `$uri` | `string` | Request URI path |
-
-The method is matched case-sensitively, as [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110#section-9.1) defines it: `get` does not match a `GET` route. Only registration is case-insensitive, so `addRoute('get', ...)` registers a `GET` route.
-
-**Returns:**
-
-On match:
-```php
-[
-    'handler' => callable|array|string,  // Route handler
-    'params' => array<string, string>,   // Captured parameters
-    'middlewares' => array,              // Route middleware
-    'name' => string|null,               // Route name
-    'attributes' => array<string, mixed>, // Custom attributes, [] if none
-]
-```
-
-On no match: `false`
-
-::: tip HEAD Fallback
-Per RFC 7231, if no explicit `HEAD` route is registered, `match()` automatically falls back to the matching `GET` route. This ensures `curl -I` and monitoring tools work without registering separate HEAD routes.
-:::
-
-Static routes take precedence over dynamic ones; dynamic routes are tried in registration order.
-
-Parameters are returned as they appear in `$uri`. If you pass the raw request path, they are still percent-encoded: `/files/a%2Fb` gives `['name' => 'a%2Fb']` for `/files/{name}`. Decode them with `rawurldecode()` after matching.
-
-**Throws:**
-
-- `InvalidArgumentException` — If a custom parameter regex (e.g. `{id:a{2,1}}`) is not a valid regular expression. Custom regexes are compiled on first use, so this surfaces on the first request that reaches the route.
-
-**Example:**
-
-```php
-$match = $router->match('GET', '/users/123');
-
-if ($match !== false) {
-    $handler = $match['handler'];     // [UserController::class, 'show']
-    $params = $match['params'];       // ['id' => '123']
-    $middlewares = $match['middlewares'];
-    $name = $match['name'];           // 'users.show' or null
-    $attributes = $match['attributes']; // ['permission' => 'users.view'] or []
+if ($result instanceof Matched) {
+    $handler = $result->route->handler;
+    $params = $result->params;
+    $middlewares = $result->route->middlewares;
+    $permission = $result->route->getAttribute('permission');
+} elseif ($result instanceof MethodNotAllowed) {
+    http_response_code(405);
+    header('Allow: ' . implode(', ', $result->allowedMethods));
 } else {
-    // 404 Not Found
+    http_response_code(404);
 }
 ```
 
----
+Pass a URI **path**, without its query string. Methods are matched case-sensitively: `get` does not match a `GET` route. Registration through `RouteCollector::addRoute()` accepts lowercase method names and normalizes them.
+
+### Matching order
+
+For a given method, static routes take precedence over dynamic routes. Dynamic routes are tried in registration order, including when their prefixes differ. A HEAD request first tries explicit HEAD routes, then falls back to GET if no HEAD route matches the path. An explicit dynamic HEAD route therefore takes precedence over a static GET fallback.
+
+Parameters retain the bytes supplied in `$uri`. For `/files/{name}`, `/files/a%2Fb` produces `['name' => 'a%2Fb']`; decoding is the application's responsibility. Empty parameter captures are omitted.
+
+Route syntax and regex validity are checked during `build()`; invalid definitions throw `InvalidArgumentException`. A PCRE execution failure during `resolve()` or `getAllowedMethods()` (for example, exceeding the backtracking limit for a URI) throws `RuntimeException` rather than returning a 404/405 result. Its message names the HTTP method, such as `Cannot match GET routes: Backtrack limit exhausted`, because the routes of a method are matched together.
 
 ## getAllowedMethods()
 
@@ -148,27 +64,15 @@ if ($match !== false) {
 public function getAllowedMethods(string $uri): array
 ```
 
-Get the HTTP methods that have a route matching the URI. Use it to tell `405 Method Not Allowed` from `404 Not Found` and to fill the `Allow` header. `HEAD` is included whenever `GET` matches.
-
-`Router` implements `Solo\Contracts\Router\AllowedMethodsInterface` with this method, so code that depends only on the contracts can check for it with `instanceof`.
-
-**Returns:** `list<string>`, in the order `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
+Returns the methods accepting the path as `list<string>`, ordered `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`. HEAD is included whenever GET matches. A missing path returns `[]`.
 
 ```php
-$match = $router->match($method, $uri);
-
-if ($match === false) {
-    $allowed = $router->getAllowedMethods($uri);
-    if ($allowed !== []) {
-        http_response_code(405);
-        header('Allow: ' . implode(', ', $allowed));
-    } else {
-        http_response_code(404);
-    }
-}
+$router->getAllowedMethods('/users/123'); // ['GET', 'HEAD']
 ```
 
----
+`resolve()` already returns this information on `MethodNotAllowed`; there is no need to call `getAllowedMethods()` again to produce a 405 response.
+
+The core router has no external package dependencies. Application integrations can depend on `Solo\Router\Router`; separate contracts can describe this API without preserving v3 registration or result types. See [migration](/guide/migration-v4#contracts-and-integrations).
 
 ## getRoutes()
 
@@ -176,19 +80,13 @@ if ($match === false) {
 public function getRoutes(): array
 ```
 
-Get all registered routes.
-
-**Returns:** `Route[]`
+Returns `list<Route>` in registration order. Each [Route](/api/route) is a runtime snapshot; its `path` already includes group prefixes.
 
 ```php
-$routes = $router->getRoutes();
-
-foreach ($routes as $route) {
-    echo $route->method->value . ' ' . $route->group . $route->path . "\n";
+foreach ($router->getRoutes() as $route) {
+    echo $route->method->value . ' ' . $route->path . "\n";
 }
 ```
-
----
 
 ## getRouteByName()
 
@@ -196,78 +94,43 @@ foreach ($routes as $route) {
 public function getRouteByName(string $name): ?Route
 ```
 
-Get a route by its name.
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$name` | `string` | Route name |
-
-**Returns:** `Route|null`
+Returns a runtime route or `null`:
 
 ```php
 $route = $router->getRouteByName('users.show');
-
 if ($route !== null) {
-    echo $route->path;      // '/users/{id}'
-    echo $route->getName(); // 'users.show'
+    echo $route->path; // '/users/{id}'
+    echo $route->name; // 'users.show'
 }
 ```
 
----
+## Compiled patterns
 
-## Performance Optimizations
+Static routes use a hash table by path and method. The dynamic routes of each method are compiled into one regular expression, so a lookup runs a single `preg_match()` per method. Very large tables are split into several patterns only when PCRE rejects one as too large; they are tried in order.
 
-The Router implements several optimizations:
+Inside a pattern, routes form a prefix tree in registration order: routes with a common start share it, and PCRE skips a whole subtree as soon as its prefix fails. Lookup time therefore depends little on the number of routes or on their position, including routes that start with a parameter or a regex constraint.
 
-### Static Route Cache
+Sharing never changes which route matches first:
 
-Routes without parameters use O(1) hash table lookup:
+- A shared prefix contains only literal text and parameters that consume exactly one segment: `{name}`, or a regex that cannot match `/` (such as `\d+`, `[a-z]{2}` or `en|ru`), followed by `/` or the end of the path. Optional segments, raw groups with quantifiers, and parameters that can span segments are never shared, because backtracking into them could reach a later route first. Routes that start with one are tried one by one, so their lookup time grows with their number: see [optional segments](/guide/performance#optional-segments).
+- A route moves ahead of an earlier route only when their literal text differs at the same position, so no URI can match both.
 
-```php
-// Static route - instant lookup
-$router->addRoute('GET', '/about', [PageController::class, 'about']);
-```
+The matched route is identified by a PCRE mark, and parameters are read by group number. A 405 check tries the patterns of the other methods.
 
-### Method Indexing
+Building costs far more than a lookup. [RouteCache](/features/caching) stores built routers in PHP files that OPcache keeps in memory. See [performance measurements](/guide/performance) for lookup and construction costs.
 
-Routes are indexed by HTTP method to avoid checking all routes:
+## toArray()
 
 ```php
-// Only GET routes are checked for GET requests
-$router->match('GET', '/users');
+public function toArray(): array
 ```
 
-### Prefix Filtering
+Exports the routing tables as plain PHP values, e.g. for `var_export()` in a cache file. Throws `LogicException` if a handler, middleware, or attribute contains a closure or another object: only scalars, `null`, arrays, and enums can be exported. The format is internal; pass it only to `fromArray()` of the same package version.
 
-Each dynamic route remembers the literal text before its first parameter, optional segment or regex group. Routes whose prefix does not match the URI are skipped without running a regex:
+## fromArray()
 
 ```php
-// Only routes starting with '/users/' run their regex for /users/123
-$router->addRoute('GET', '/users/{id}', [UserController::class, 'show']);
-$router->addRoute('GET', '/posts/{id}', [PostController::class, 'show']); // skipped
+public static function fromArray(array $data): Router
 ```
 
-### Allowed Methods in One Pass
-
-`getAllowedMethods()` checks each dynamic path once, whatever number of methods share it: `/users/{id}` registered for `GET`, `PUT` and `DELETE` runs one regex, not three.
-
-### One-Pass Compilation
-
-Paths are compiled to regular expressions in a single pass when the route is registered, so syntax errors fail fast; a path shared by several methods is compiled once. PCRE compiles the resulting regex lazily on first use.
-
-### Route Categorization
-
-Routes are automatically categorized as static or dynamic:
-
-```php
-// Static (hash lookup)
-'/about'
-'/contact'
-
-// Dynamic (regex matching)
-'/users/{id}'
-'/posts[/{page}]'
-'/{lang:[a-z]{2}}/home'
-```
+Restores a router from `toArray()` data without registering or building routes. Throws `InvalidArgumentException` for data exported by an incompatible version. Runtime `Route` objects are created when first used and then shared, as in a built router.

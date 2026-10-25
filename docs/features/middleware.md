@@ -1,231 +1,112 @@
 # Middleware
 
-Middleware intercepts requests before they reach the handler.
+Routes store middleware metadata. Your application executes the middleware around a matched handler; the router itself does not dispatch requests.
 
-## Adding Middleware
+The registration examples assume `$routes = new Solo\Router\RouteCollector()`.
 
-### Single Middleware
+## Adding middleware
 
 ```php
-$router->get('/profile', [ProfileController::class, 'show'])
+$routes->get('/profile', [ProfileController::class, 'show'])
     ->middleware(AuthMiddleware::class);
-```
 
-### Multiple Middleware
-
-```php
-$router->get('/admin/users', [AdminController::class, 'users'])
+$routes->get('/admin/users', [AdminController::class, 'users'])
     ->middleware(AuthMiddleware::class, AdminMiddleware::class, LogMiddleware::class);
 ```
 
-### Group Middleware
-
-Pass middleware array to `group()`:
+Group middleware is passed as the third argument:
 
 ```php
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/dashboard', [AdminController::class, 'dashboard']);
-    $router->get('/users', [AdminController::class, 'users']);
+use Solo\Router\RouteCollector;
+
+$routes->group('/admin', function (RouteCollector $routes) {
+    $routes->get('/dashboard', [AdminController::class, 'dashboard']);
 }, [AuthMiddleware::class, AdminMiddleware::class]);
 ```
 
----
+## Order
 
-## Middleware Execution Order
+Middleware is stored in outer-to-inner order:
 
-The match result returns middleware in canonical "onion" order — outermost wraps innermost:
-
-1. **Group middleware** (outermost group first)
-2. **Route middleware** (appended last, in order added)
+1. Outermost group middleware
+2. Nested group middleware
+3. Route middleware in the order appended
 
 ```php
-$router->group('/api', function($router) {
-    $router->group('/admin', function($router) {
-        $router->get('/stats', [StatsController::class, 'index'])
+$routes->group('/api', function (RouteCollector $routes) {
+    $routes->group('/admin', function (RouteCollector $routes) {
+        $routes->get('/stats', [StatsController::class, 'index'])
             ->middleware(CacheMiddleware::class);
     }, [AdminMiddleware::class]);
 }, [ApiMiddleware::class]);
 
-// Order: ApiMiddleware → AdminMiddleware → CacheMiddleware
+// ApiMiddleware → AdminMiddleware → CacheMiddleware → handler
 ```
 
----
-
-## Accessing Middleware
-
-Middleware is returned in the match result:
+## Accessing middleware
 
 ```php
-$match = $router->match('GET', '/admin/dashboard');
+use Solo\Router\Results\Matched;
 
-if ($match) {
-    $middlewares = $match['middlewares'];
+$router = $routes->build();
+$result = $router->resolve('GET', '/admin/dashboard');
+
+if ($result instanceof Matched) {
+    $middlewares = $result->route->middlewares;
     // [AuthMiddleware::class, AdminMiddleware::class]
 }
 ```
 
-## Executing Middleware
+Fluent changes to definitions after a build affect later builds only.
 
-### Simple Loop
+## Application pipeline example
+
+This example assumes the application supplies `$container`, `$request`, and a `$dispatch($handler, $params, $request)` callable. Its middleware objects expose `handle($request, $next)`, and middleware closures have the same arguments. These are example application conventions, not interfaces required by Solo Router.
 
 ```php
-$match = $router->match($method, $uri);
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
 
-foreach ($match['middlewares'] as $middleware) {
-    $instance = new $middleware();
-    $response = $instance->handle($request);
-    
-    if ($response !== null) {
-        return $response; // Middleware returned early
+$result = $router->resolve($method, $uri);
+if (!$result instanceof Matched) {
+    if ($result instanceof MethodNotAllowed) {
+        http_response_code(405);
+        header('Allow: ' . implode(', ', $result->allowedMethods));
+    } else {
+        http_response_code(404);
     }
+    return;
 }
 
-// All middleware passed, execute handler
-$handler = $match['handler'];
-```
-
-### Pipeline Pattern
-
-```php
-$match = $router->match($method, $uri);
-
-$pipeline = array_reduce(
-    array_reverse($match['middlewares']),
-    function ($next, $middleware) use ($container) {
-        return function ($request) use ($next, $middleware, $container) {
-            $instance = $container->get($middleware);
-            return $instance->handle($request, $next);
-        };
-    },
-    function ($request) use ($match, $container) {
-        // Final handler
-        return $this->dispatch($match['handler'], $match['params']);
-    }
+$pipeline = static fn ($request) => $dispatch(
+    $result->route->handler,
+    $result->params,
+    $request
 );
 
-return $pipeline($request);
-```
-
----
-
-## Middleware Types
-
-### Class String
-
-```php
-$router->get('/profile', [ProfileController::class, 'show'])
-    ->middleware(AuthMiddleware::class);
-```
-
-### Closure
-
-```php
-$authCheck = function ($request, $next) {
-    if (!$request->user()) {
-        return redirect('/login');
-    }
-    return $next($request);
-};
-
-$router->get('/profile', [ProfileController::class, 'show'])
-    ->middleware($authCheck);
-```
-
----
-
-## Common Middleware Examples
-
-### Authentication
-
-```php
-class AuthMiddleware
-{
-    public function handle($request, $next)
-    {
-        if (!$request->user()) {
-            return redirect('/login');
+foreach (array_reverse($result->route->middlewares) as $middleware) {
+    $next = $pipeline;
+    $pipeline = static function ($request) use ($middleware, $next, $container) {
+        if (is_string($middleware) && class_exists($middleware)) {
+            return $container->get($middleware)->handle($request, $next);
         }
+        return $middleware($request, $next);
+    };
+}
+
+$response = $pipeline($request);
+```
+
+Reversing the stored list while constructing the pipeline makes outer group middleware execute first and wrap the remaining middleware.
+
+## Closure middleware
+
+```php
+$routes->get('/profile', [ProfileController::class, 'show'])
+    ->middleware(function ($request, $next) {
+        // Perform an application check here.
         return $next($request);
-    }
-}
+    });
 ```
 
-### Role Check
-
-```php
-class AdminMiddleware
-{
-    public function handle($request, $next)
-    {
-        if (!$request->user()?->isAdmin()) {
-            abort(403);
-        }
-        return $next($request);
-    }
-}
-```
-
-### Rate Limiting
-
-```php
-class ThrottleMiddleware
-{
-    public function handle($request, $next)
-    {
-        $key = $request->ip();
-        
-        if ($this->rateLimiter->tooManyAttempts($key, 60)) {
-            abort(429);
-        }
-        
-        $this->rateLimiter->hit($key);
-        return $next($request);
-    }
-}
-```
-
-### JSON Response
-
-```php
-class JsonMiddleware
-{
-    public function handle($request, $next)
-    {
-        $response = $next($request);
-        
-        return $response->withHeader('Content-Type', 'application/json');
-    }
-}
-```
-
----
-
-## Best Practices
-
-::: tip Order Matters
-Place authentication before authorization:
-
-```php
-->middleware(
-    AuthMiddleware::class,      // Who is the user?
-    AdminMiddleware::class,     // Can they access this?
-    LogMiddleware::class        // Log the access
-)
-```
-:::
-
-::: tip Group Common Middleware
-Don't repeat middleware on every route:
-
-```php
-// ❌ Bad
-$router->get('/admin/users', [...])->middleware(AuthMiddleware::class, AdminMiddleware::class);
-$router->get('/admin/posts', [...])->middleware(AuthMiddleware::class, AdminMiddleware::class);
-
-// ✅ Good
-$router->group('/admin', function($router) {
-    $router->get('/users', [...]);
-    $router->get('/posts', [...]);
-}, [AuthMiddleware::class, AdminMiddleware::class]);
-```
-:::
+Build the router after adding this definition to include it in the runtime snapshot.

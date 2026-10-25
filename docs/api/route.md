@@ -1,264 +1,115 @@
-# Route
+# Route and RouteDefinition
 
-Route definition with fluent configuration API.
+v4 separates the mutable configuration object from the runtime route.
 
-```php
-use Solo\Router\Route;
-use Solo\Router\Enums\HttpMethod;
-```
+| Type | Created by | Purpose |
+|------|------------|---------|
+| `RouteDefinition` | `RouteCollector::get()`, `post()`, `addRoute()`, etc. | Configure a route before a build |
+| `Route` | Building a router | Read the route selected by `resolve()` or `getRouteByName()` |
 
-## Constructor
+## Route
 
-```php
-public function __construct(
-    HttpMethod $method,
-    string $group,
-    string $path,
-    mixed $handler,
-    array $middlewares = [],
-    ?string $name = null,
-    array $attributes = []
-)
-```
+`Solo\Router\Route` exposes readonly properties:
 
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$method` | `HttpMethod` | HTTP method enum |
-| `$group` | `string` | URL prefix from group |
-| `$path` | `string` | Route path pattern |
-| `$handler` | `mixed` | Route handler |
-| `$middlewares` | `array` | Initial middleware |
-| `$name` | `string\|null` | Route name |
-| `$attributes` | `array` | Initial [attributes](/features/attributes) |
-
-**Example:**
+| Property | Type | Meaning |
+|----------|------|---------|
+| `method` | `HttpMethod` | HTTP method enum |
+| `path` | `string` | Complete path pattern, including group prefixes |
+| `handler` | `mixed` | Application handler |
+| `middlewares` | `list<callable\|string>` | Middleware in outer-to-inner order |
+| `name` | `string\|null` | Final route name |
+| `attributes` | `array<string, mixed>` | Final attributes after group inheritance |
 
 ```php
-$route = new Route(
-    method: HttpMethod::GET,
-    group: '/api',
-    path: '/users/{id}',
-    handler: [UserController::class, 'show'],
-    middlewares: [AuthMiddleware::class],
-    name: 'users.show',
-    attributes: ['permission' => 'users.view']
-);
+$router = $routes->build();
+$route = $router->getRouteByName('users.show');
+
+if ($route !== null) {
+    echo $route->method->value; // 'GET'
+    echo $route->path;          // '/api/users/{id}'
+    echo $route->name;          // 'users.show'
+    $middlewares = $route->middlewares;
+    $attributes = $route->attributes;
+}
 ```
 
----
+There is no separate runtime `group` or `fullPath` property. `path` is the full pattern. Runtime routes have no fluent setters, `getName()`, `getMiddlewares()`, or `getAttributes()`; read the corresponding property.
 
-## Public Properties
-
-All properties are `readonly`:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `$method` | `HttpMethod` | HTTP method enum |
-| `$group` | `string` | URL prefix |
-| `$path` | `string` | Route path pattern |
-| `$handler` | `mixed` | Route handler |
-
-```php
-echo $route->method->value;  // 'GET'
-echo $route->group;          // '/api'
-echo $route->path;           // '/users/{id}'
-```
-
----
-
-## name()
-
-```php
-public function name(string $name): self
-```
-
-Set the route name. Returns `$this` for chaining.
-
-Throws `InvalidArgumentException` if the router already has another route with this name.
-
-```php
-$router->get('/users/{id}', [UserController::class, 'show'])
-    ->name('users.show');
-```
-
----
-
-## getName()
-
-```php
-public function getName(): ?string
-```
-
-Get the route name.
-
-```php
-$name = $route->getName(); // 'users.show' or null
-```
-
----
-
-## middleware()
-
-```php
-public function middleware(callable|string ...$middlewares): self
-```
-
-Add middleware to the route. Returns `$this` for chaining.
-
-**Single middleware:**
-
-```php
-$router->get('/profile', [ProfileController::class, 'show'])
-    ->middleware(AuthMiddleware::class);
-```
-
-**Multiple middleware:**
-
-```php
-$router->get('/admin', [AdminController::class, 'index'])
-    ->middleware(AuthMiddleware::class, AdminMiddleware::class, LogMiddleware::class);
-```
-
-**Chained calls:**
-
-```php
-$router->get('/admin/users', [AdminUserController::class, 'index'])
-    ->middleware(AuthMiddleware::class)
-    ->middleware(AdminMiddleware::class)
-    ->name('admin.users');
-```
-
----
-
-## getMiddlewares()
-
-```php
-public function getMiddlewares(): array
-```
-
-Get all middleware assigned to the route.
-
-```php
-$middlewares = $route->getMiddlewares();
-// [AuthMiddleware::class, AdminMiddleware::class]
-```
-
----
-
-## attribute()
-
-```php
-public function attribute(string $key, mixed $value): self
-```
-
-Set a custom attribute. The router stores it and returns it from `match()` without interpreting it. Replaces an earlier value for the same key, including one inherited from a group. Returns `$this` for chaining.
-
-Throws `InvalidArgumentException` if the key is an integer string such as `'42'`, which PHP would store as an integer key. The constructor's `$attributes` and the `attributes` option of `addRoute()` follow the same rule.
-
-```php
-$router->get('/reports', [ReportController::class, 'index'])
-    ->attribute('permission', 'reports.view')
-    ->attribute('plan', 'pro');
-```
-
-See [Route Attributes](/features/attributes).
-
----
-
-## getAttribute()
+### getAttribute()
 
 ```php
 public function getAttribute(string $key, mixed $default = null): mixed
 ```
 
-Get one attribute. Returns `$default` only when the key is not set; a stored `null` is returned as `null`.
+Returns the default only when the key is missing. A stored `null` remains `null`.
 
 ```php
-$route->getAttribute('permission');     // 'reports.view'
-$route->getAttribute('rate_limit', 60); // 60
+$route->getAttribute('permission');     // 'users.view', if configured
+$route->getAttribute('rate_limit', 60); // 60, if missing
 ```
 
----
+Handler, middleware, and attribute arrays are stored as PHP values, so later changes to a definition do not reach a built route. Values stored through PHP references inside those arrays stay shared.
 
-## getAttributes()
+Readonly route metadata does not make application-owned objects immutable. Handler objects, closures, and object-valued attributes retain their identity across builds.
+
+## RouteDefinition
+
+`Solo\Router\RouteDefinition` retains the fluent configuration API:
 
 ```php
-public function getAttributes(): array
+$definition = $routes->get('/users/{id}', [UserController::class, 'show'])
+    ->name('users.show')
+    ->middleware(AuthMiddleware::class, LogMiddleware::class)
+    ->attribute('permission', 'users.view');
 ```
 
-Get all attributes, including those inherited from groups.
+### name()
 
 ```php
-$attributes = $route->getAttributes();
-// ['permission' => 'reports.view', 'plan' => 'pro']
+public function name(string $name): self
 ```
 
----
+Sets or replaces the name. Uniqueness is checked by `build()`, so definitions can be renamed while configuring routes.
 
-## HttpMethod Enum
+### middleware()
 
 ```php
-namespace Solo\Router\Enums;
-
-enum HttpMethod: string
-{
-    case GET = 'GET';
-    case HEAD = 'HEAD';
-    case POST = 'POST';
-    case PUT = 'PUT';
-    case PATCH = 'PATCH';
-    case DELETE = 'DELETE';
-    case OPTIONS = 'OPTIONS';
-}
+public function middleware(callable|string ...$middlewares): self
 ```
 
-**Usage:**
+Appends middleware after any inherited group middleware. Repeated calls preserve their order.
+
+### attribute()
+
+```php
+public function attribute(string $key, mixed $value): self
+```
+
+Sets or replaces one custom value, including a value inherited from a group. Integer strings such as `'42'` throw `InvalidArgumentException` because PHP stores them as integer array keys.
+
+### Reading a definition
+
+The builder object retains its getters:
+
+```php
+$definition->getName();
+$definition->getMiddlewares();
+$definition->getAttribute('permission', 'public');
+$definition->getAttributes();
+```
+
+Definitions also expose readonly `method`, `group`, `path`, `fullPath`, and `handler` properties. Here `path` is local to the group and `fullPath` includes the group prefix. On a built `Route`, `path` alone contains the full path.
+
+Changing a definition after a build changes only subsequent builds. Read final runtime metadata from the built router.
+
+## HttpMethod
+
+`Solo\Router\Enums\HttpMethod` is a string-backed enum with cases `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`.
 
 ```php
 use Solo\Router\Enums\HttpMethod;
 
-$route = new Route(
-    method: HttpMethod::POST,
-    // ...
-);
-
-// Access value
-echo $route->method->value; // 'POST'
-
-// Compare
 if ($route->method === HttpMethod::GET) {
-    // ...
+    echo $route->method->value; // 'GET'
 }
-```
-
----
-
-## Fluent API Example
-
-```php
-$router->get('/admin/users/{id}/edit', [AdminUserController::class, 'edit'])
-    ->name('admin.users.edit')
-    ->middleware(AuthMiddleware::class, AdminMiddleware::class)
-    ->attribute('permission', 'users.edit');
-
-// Later
-$route = $router->getRouteByName('admin.users.edit');
-
-echo $route->getName();                   // 'admin.users.edit'
-echo $route->path;                        // '/admin/users/{id}/edit'
-print_r($route->getMiddlewares());        // [AuthMiddleware::class, AdminMiddleware::class]
-echo $route->getAttribute('permission');  // 'users.edit'
-```
-
----
-
-## Full Path
-
-The complete route path including the group prefix:
-
-```php
-$route->fullPath;
-// '/api/users/{id}'
 ```

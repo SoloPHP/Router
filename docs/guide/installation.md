@@ -2,62 +2,59 @@
 
 ## Requirements
 
-- PHP 8.1 or higher
+- PHP 8.3 or later within PHP 8.x (`^8.3`)
 - Composer
+
+Projects on PHP 8.1 or 8.2 can stay on version 3.5.
 
 ## Composer
 
-Install the package via Composer:
+Install Solo Router 4:
 
 ```bash
-composer require solophp/router
+composer require "solophp/router:^4.0"
 ```
 
-## Dependencies
+These pages document version 4.0.0. When upgrading an existing application, follow the [v3 to v4 migration guide](/guide/migration-v4).
 
-```json
-{
-    "require": {
-        "php": ">=8.1",
-        "solophp/contracts": "^1.5"
-    }
-}
-```
+## Dependencies and integrations
 
-## Basic Setup
+The core package requires only PHP. It has no dependency on `solophp/contracts` and implements neither of its v3 router interfaces. Integrations should use the v4 builder and typed resolution API; see [migration](/guide/migration-v4#contracts-and-integrations).
+
+## Basic setup
 
 ```php
 use Solo\Router\RouteCollector;
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
 
-$router = new RouteCollector();
+$routes = new RouteCollector();
+$routes->get('/', [HomeController::class, 'index']);
+$routes->get('/about', [PageController::class, 'about']);
+$router = $routes->build();
 
-// Define routes
-$router->get('/', [HomeController::class, 'index']);
-$router->get('/about', [PageController::class, 'about']);
-
-// Match incoming request
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if (!is_string($uri)) {
+    http_response_code(400);
+    return;
+}
 
-$match = $router->match($method, $uri);
-
-if ($match) {
-    // Route found
-    $handler = $match['handler'];
-    $params = $match['params'];
-    $middlewares = $match['middlewares'];
-    $name = $match['name'];
-} elseif ($allowed = $router->getAllowedMethods($uri)) {
-    // 405 Method Not Allowed
+$result = $router->resolve($method, $uri);
+if ($result instanceof Matched) {
+    $handler = $result->route->handler;
+    $params = $result->params;
+    // Dispatch with your application's controller and middleware integration.
+} elseif ($result instanceof MethodNotAllowed) {
     http_response_code(405);
-    header('Allow: ' . implode(', ', $allowed));
+    header('Allow: ' . implode(', ', $result->allowedMethods));
 } else {
-    // 404 Not Found
     http_response_code(404);
 }
 ```
 
-## Next Steps
+## Next steps
 
-- [Quick Start](/guide/quick-start) — Define your first routes
-- [Handlers](/guide/handlers) — Learn about handler types
+- [Quick start](/guide/quick-start)
+- [Handlers](/guide/handlers)
+- [Migrating from v3](/guide/migration-v4)

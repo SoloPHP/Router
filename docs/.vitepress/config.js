@@ -20,7 +20,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/installation' },
       { text: 'Features', link: '/features/parameters' },
       { text: 'API', link: '/api/route-collector' },
-      { text: 'v3.5.0', link: 'https://github.com/solophp/router/releases' },
+      { text: 'v4.0.0', link: '/guide/migration-v4' },
       {
         text: 'Links',
         items: [
@@ -37,7 +37,9 @@ export default defineConfig({
         items: [
           { text: 'Installation', link: '/guide/installation' },
           { text: 'Quick Start', link: '/guide/quick-start' },
-          { text: 'Handlers', link: '/guide/handlers' }
+          { text: 'Handlers', link: '/guide/handlers' },
+          { text: 'Performance', link: '/guide/performance' },
+          { text: 'Migrating to v4', link: '/guide/migration-v4' }
         ]
       },
       {
@@ -48,7 +50,8 @@ export default defineConfig({
           { text: 'Route Groups', link: '/features/groups' },
           { text: 'Middleware', link: '/features/middleware' },
           { text: 'Named Routes', link: '/features/named-routes' },
-          { text: 'Route Attributes', link: '/features/attributes' }
+          { text: 'Route Attributes', link: '/features/attributes' },
+          { text: 'Route Cache', link: '/features/caching' }
         ]
       },
       {
@@ -56,7 +59,8 @@ export default defineConfig({
         items: [
           { text: 'RouteCollector', link: '/api/route-collector' },
           { text: 'Router', link: '/api/router' },
-          { text: 'Route', link: '/api/route' }
+          { text: 'Route', link: '/api/route' },
+          { text: 'RouteCache', link: '/api/route-cache' }
         ]
       }
     ],

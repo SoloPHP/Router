@@ -1,14 +1,22 @@
 # Route Groups
 
+The examples configure a collector. Build a router after configuration to resolve requests. Treat the patterns below as independent examples.
+
+```php
+use Solo\Router\RouteCollector;
+
+$routes = new RouteCollector();
+```
+
 Groups share prefixes, middleware and attributes across multiple routes.
 
 ## Basic Groups
 
 ```php
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/dashboard', [AdminController::class, 'dashboard']);
-    $router->get('/users', [AdminController::class, 'users']);
-    $router->get('/settings', [AdminController::class, 'settings']);
+$routes->group('/admin', function(RouteCollector $routes) {
+    $routes->get('/dashboard', [AdminController::class, 'dashboard']);
+    $routes->get('/users', [AdminController::class, 'users']);
+    $routes->get('/settings', [AdminController::class, 'settings']);
 });
 
 // Registers:
@@ -22,9 +30,9 @@ $router->group('/admin', function(RouteCollector $router) {
 Pass middleware as the third parameter:
 
 ```php
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/dashboard', [AdminController::class, 'dashboard']);
-    $router->get('/users', [AdminController::class, 'users']);
+$routes->group('/admin', function(RouteCollector $routes) {
+    $routes->get('/dashboard', [AdminController::class, 'dashboard']);
+    $routes->get('/users', [AdminController::class, 'users']);
 }, [AuthMiddleware::class, AdminMiddleware::class]);
 
 // All routes have AuthMiddleware and AdminMiddleware
@@ -35,9 +43,9 @@ $router->group('/admin', function(RouteCollector $router) {
 Pass [attributes](/features/attributes) as the fourth parameter, or by name:
 
 ```php
-$router->group('/billing', function(RouteCollector $router) {
-    $router->get('/invoices', [InvoiceController::class, 'index']);
-    $router->get('/plans', [PlanController::class, 'index'])
+$routes->group('/billing', function(RouteCollector $routes) {
+    $routes->get('/invoices', [InvoiceController::class, 'index']);
+    $routes->get('/plans', [PlanController::class, 'index'])
         ->attribute('permission', 'billing.view');
 }, attributes: ['permission' => 'billing.manage']);
 
@@ -54,16 +62,16 @@ Unlike middleware, attributes don't accumulate: an inner group or the route itse
 Groups can be nested to any depth:
 
 ```php
-$router->group('/api', function(RouteCollector $router) {
+$routes->group('/api', function(RouteCollector $routes) {
     
-    $router->group('/v1', function(RouteCollector $router) {
-        $router->get('/users', [ApiV1UserController::class, 'index']);
-        $router->get('/posts', [ApiV1PostController::class, 'index']);
+    $routes->group('/v1', function(RouteCollector $routes) {
+        $routes->get('/users', [ApiV1UserController::class, 'index']);
+        $routes->get('/posts', [ApiV1PostController::class, 'index']);
     });
     
-    $router->group('/v2', function(RouteCollector $router) {
-        $router->get('/users', [ApiV2UserController::class, 'index']);
-        $router->get('/posts', [ApiV2PostController::class, 'index']);
+    $routes->group('/v2', function(RouteCollector $routes) {
+        $routes->get('/users', [ApiV2UserController::class, 'index']);
+        $routes->get('/posts', [ApiV2PostController::class, 'index']);
     });
     
 });
@@ -80,10 +88,10 @@ $router->group('/api', function(RouteCollector $router) {
 Middleware is inherited and merged:
 
 ```php
-$router->group('/api', function(RouteCollector $router) {
+$routes->group('/api', function(RouteCollector $routes) {
     
-    $router->group('/admin', function(RouteCollector $router) {
-        $router->get('/stats', [AdminController::class, 'stats']);
+    $routes->group('/admin', function(RouteCollector $routes) {
+        $routes->get('/stats', [AdminController::class, 'stats']);
     }, [AdminMiddleware::class]);
     
 }, [ApiMiddleware::class, RateLimitMiddleware::class]);
@@ -101,30 +109,30 @@ $router->group('/api', function(RouteCollector $router) {
 Organize CRUD routes:
 
 ```php
-$router->group('/users', function(RouteCollector $router) {
-    $router->get('/', [UserController::class, 'index'])->name('users.index');
-    $router->get('/create', [UserController::class, 'create'])->name('users.create');
-    $router->post('/', [UserController::class, 'store'])->name('users.store');
-    $router->get('/{id}', [UserController::class, 'show'])->name('users.show');
-    $router->get('/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
-    $router->put('/{id}', [UserController::class, 'update'])->name('users.update');
-    $router->delete('/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+$routes->group('/users', function(RouteCollector $routes) {
+    $routes->get('/', [UserController::class, 'index'])->name('users.index');
+    $routes->get('/create', [UserController::class, 'create'])->name('users.create');
+    $routes->post('/', [UserController::class, 'store'])->name('users.store');
+    $routes->get('/{id}', [UserController::class, 'show'])->name('users.show');
+    $routes->get('/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
+    $routes->put('/{id}', [UserController::class, 'update'])->name('users.update');
+    $routes->delete('/{id}', [UserController::class, 'destroy'])->name('users.destroy');
 });
 ```
 
 ## API Versioning
 
 ```php
-$router->group('/api', function(RouteCollector $router) {
+$routes->group('/api', function(RouteCollector $routes) {
     
     // Version 1
-    $router->group('/v1', function(RouteCollector $router) {
-        $router->get('/users', [V1\UserController::class, 'index']);
+    $routes->group('/v1', function(RouteCollector $routes) {
+        $routes->get('/users', [V1\UserController::class, 'index']);
     }, [V1DeprecationMiddleware::class]);
     
     // Version 2 (current)
-    $router->group('/v2', function(RouteCollector $router) {
-        $router->get('/users', [V2\UserController::class, 'index']);
+    $routes->group('/v2', function(RouteCollector $routes) {
+        $routes->get('/users', [V2\UserController::class, 'index']);
     });
     
 }, [ApiAuthMiddleware::class, JsonMiddleware::class]);
@@ -137,15 +145,15 @@ $router->group('/api', function(RouteCollector $router) {
 Use optional segments in group prefix:
 
 ```php
-$router->group('[/{lang:[a-z]{2}}]', function(RouteCollector $router) {
-    $router->get('/', [HomeController::class, 'index']);
-    $router->get('/about', [PageController::class, 'about']);
-    $router->get('/contact', [PageController::class, 'contact']);
+$routes->group('[/{lang:[a-z]{2}}]', function(RouteCollector $routes) {
+    $routes->get('/', [HomeController::class, 'index']);
+    $routes->get('/about', [PageController::class, 'about']);
+    $routes->get('/contact', [PageController::class, 'contact']);
 });
 
 // Matches both:
 // /, /about, /contact
-// /en, /en/about, /en/contact
+// /en/, /en/about, /en/contact
 ```
 
 ## Domain-style Groups
@@ -154,29 +162,29 @@ Organize by feature area:
 
 ```php
 // Public routes
-$router->group('', function(RouteCollector $router) {
-    $router->get('/', [HomeController::class, 'index']);
-    $router->get('/about', [PageController::class, 'about']);
+$routes->group('', function(RouteCollector $routes) {
+    $routes->get('/', [HomeController::class, 'index']);
+    $routes->get('/about', [PageController::class, 'about']);
 });
 
 // Auth routes
-$router->group('/auth', function(RouteCollector $router) {
-    $router->get('/login', [AuthController::class, 'showLogin']);
-    $router->post('/login', [AuthController::class, 'login']);
-    $router->post('/logout', [AuthController::class, 'logout']);
+$routes->group('/auth', function(RouteCollector $routes) {
+    $routes->get('/login', [AuthController::class, 'showLogin']);
+    $routes->post('/login', [AuthController::class, 'login']);
+    $routes->post('/logout', [AuthController::class, 'logout']);
 }, [GuestMiddleware::class]);
 
 // Dashboard routes  
-$router->group('/dashboard', function(RouteCollector $router) {
-    $router->get('/', [DashboardController::class, 'index']);
-    $router->get('/profile', [ProfileController::class, 'show']);
-    $router->put('/profile', [ProfileController::class, 'update']);
+$routes->group('/dashboard', function(RouteCollector $routes) {
+    $routes->get('/', [DashboardController::class, 'index']);
+    $routes->get('/profile', [ProfileController::class, 'show']);
+    $routes->put('/profile', [ProfileController::class, 'update']);
 }, [AuthMiddleware::class]);
 
 // Admin routes
-$router->group('/admin', function(RouteCollector $router) {
-    $router->get('/', [AdminController::class, 'index']);
-    $router->get('/users', [AdminUserController::class, 'index']);
+$routes->group('/admin', function(RouteCollector $routes) {
+    $routes->get('/', [AdminController::class, 'index']);
+    $routes->get('/users', [AdminUserController::class, 'index']);
 }, [AuthMiddleware::class, AdminMiddleware::class]);
 ```
 
@@ -188,8 +196,8 @@ $router->group('/admin', function(RouteCollector $router) {
 Group middleware runs before route-specific middleware:
 
 ```php
-$router->group('/api', function($router) {
-    $router->get('/users', [UserController::class, 'index'])
+$routes->group('/api', function($routes) {
+    $routes->get('/users', [UserController::class, 'index'])
         ->middleware(CacheMiddleware::class);
 }, [AuthMiddleware::class]);
 

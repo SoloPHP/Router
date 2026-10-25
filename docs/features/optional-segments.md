@@ -1,11 +1,19 @@
 # Optional Segments
 
+The examples configure a collector. Build a router after configuration to resolve requests. Treat the patterns below as independent examples.
+
+```php
+use Solo\Router\RouteCollector;
+
+$routes = new RouteCollector();
+```
+
 The router supports flexible optional segment patterns using square brackets `[]`.
 
 ## Basic Optional
 
 ```php
-$router->get('/posts[/{page}]', [PostController::class, 'index']);
+$routes->get('/posts[/{page}]', [PostController::class, 'index']);
 
 // Matches:
 // /posts        → params: []
@@ -15,7 +23,7 @@ $router->get('/posts[/{page}]', [PostController::class, 'index']);
 ## Optional in the Middle
 
 ```php
-$router->get('/users[/{id}]/posts', [PostController::class, 'index']);
+$routes->get('/users[/{id}]/posts', [PostController::class, 'index']);
 
 // Matches:
 // /users/posts      → params: []
@@ -25,7 +33,7 @@ $router->get('/users[/{id}]/posts', [PostController::class, 'index']);
 ## Multiple Optional Segments
 
 ```php
-$router->get('/api[/v{version}]/users[/{id}]', [ApiController::class, 'users']);
+$routes->get('/api[/v{version}]/users[/{id}]', [ApiController::class, 'users']);
 
 // Matches:
 // /api/users           → params: []
@@ -41,7 +49,7 @@ $router->get('/api[/v{version}]/users[/{id}]', [ApiController::class, 'users']);
 Optional segments can be nested:
 
 ```php
-$router->get('/shop[/category/{cat}[/subcategory/{subcat}]]', [ShopController::class, 'index']);
+$routes->get('/shop[/category/{cat}[/subcategory/{subcat}]]', [ShopController::class, 'index']);
 
 // Matches:
 // /shop                                      → params: []
@@ -57,7 +65,7 @@ $router->get('/shop[/category/{cat}[/subcategory/{subcat}]]', [ShopController::c
 Combine optional segments with regex patterns:
 
 ```php
-$router->get('/posts[/{year:[0-9]{4}}[/{month:[0-9]{2}}[/{day:[0-9]{2}}]]]', [PostController::class, 'archive']);
+$routes->get('/posts[/{year:[0-9]{4}}[/{month:[0-9]{2}}[/{day:[0-9]{2}}]]]', [PostController::class, 'archive']);
 
 // Matches:
 // /posts                → params: []
@@ -74,7 +82,7 @@ $router->get('/posts[/{year:[0-9]{4}}[/{month:[0-9]{2}}[/{day:[0-9]{2}}]]]', [Po
 ## Optional Prefix and Suffix
 
 ```php
-$router->get('[/admin]/users[.{format:json|xml}]', [UserController::class, 'index']);
+$routes->get('[/admin]/users[.{format:json|xml}]', [UserController::class, 'index']);
 
 // Matches:
 // /users              → params: []
@@ -89,9 +97,9 @@ $router->get('[/admin]/users[.{format:json|xml}]', [UserController::class, 'inde
 ## Optional Language Prefix
 
 ```php
-$router->group('[/{lang:[a-z]{2}}]', function (RouteCollector $router) {
-    $router->get('[/]', [HomeController::class, 'index']);
-    $router->get('/documentation', [DocsController::class, 'index']);
+$routes->group('[/{lang:[a-z]{2}}]', function (RouteCollector $routes) {
+    $routes->get('[/]', [HomeController::class, 'index']);
+    $routes->get('/documentation', [DocsController::class, 'index']);
 });
 
 // Matches:
@@ -107,7 +115,7 @@ $router->group('[/{lang:[a-z]{2}}]', function (RouteCollector $router) {
 ## Complex Example
 
 ```php
-$router->get('/{lang:[a-z]{2}}[/admin]/users[/{id:[0-9]+}[/edit]]', [UserController::class, 'handle']);
+$routes->get('/{lang:[a-z]{2}}[/admin]/users[/{id:[0-9]+}[/edit]]', [UserController::class, 'handle']);
 
 // Matches:
 // /en/users                  → params: ['lang' => 'en']
@@ -124,16 +132,19 @@ $router->get('/{lang:[a-z]{2}}[/admin]/users[/{id:[0-9]+}[/edit]]', [UserControl
 
 ## Error Handling
 
-Invalid paths throw `InvalidArgumentException` when the route is registered:
+Invalid paths throw `InvalidArgumentException` at `build()`:
 
 ```php
 // Missing closing bracket
-$router->get('/users[/{id}', fn() => '');
-// InvalidArgumentException: Unmatched opening bracket(s) in: /users[/{id}
+$routes->get('/users[/{id}', fn () => '');
+$router = $routes->build(); // Throws: unmatched opening bracket
+```
 
+```php
 // Extra closing bracket
-$router->get('/users/{id}]', fn() => '');
-// InvalidArgumentException: Unmatched closing bracket at position 11 in: /users/{id}]
+$routes = new Solo\Router\RouteCollector();
+$routes->get('/users/{id}]', fn () => '');
+$router = $routes->build(); // Throws: unmatched closing bracket
 ```
 
 Text inside optional segments is literal, like everywhere else in the path: `/users[.{format}]` matches `/users.json`, not `/usersXjson`.
@@ -147,12 +158,12 @@ Static routes (no parameters or optional segments) always win over dynamic ones,
 
 ```php
 // ✅ Good
-$router->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
-$router->get('/posts/{slug}', [PostController::class, 'show']);
+$routes->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
+$routes->get('/posts/{slug}', [PostController::class, 'show']);
 
 // ❌ Bad - /posts/2024 is matched by {slug}
-$router->get('/posts/{slug}', [PostController::class, 'show']);
-$router->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
+$routes->get('/posts/{slug}', [PostController::class, 'show']);
+$routes->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
 ```
 :::
 
@@ -160,9 +171,7 @@ $router->get('/posts/{year:[0-9]{4}}', [PostController::class, 'archive']);
 Inner optional segments require outer ones:
 
 ```php
-// In this route:
-'/shop[/category/{cat}[/subcategory/{subcat}]]'
-
 // subcategory is only available if category is present
+$routes->get('/shop[/category/{cat}[/subcategory/{subcat}]]', [ShopController::class, 'index']);
 ```
 :::

@@ -1,8 +1,8 @@
 {
   "name": "solo-router-docs",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "type": "module",
-  "description": "Documentation for Solo Router",
+  "description": "Documentation for Solo Router 4",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
@@ -10,5 +10,6 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
-  }
+  },
+  "private": true
 }

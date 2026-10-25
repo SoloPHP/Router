@@ -1,0 +1,774 @@
+{
+    "recorded_at_utc": "2026-10-25T06:11:10+00:00",
+    "unit": "microseconds per lookup, median",
+    "runs": 7,
+    "lookups_per_run": 10000,
+    "solo_source": "/app/src",
+    "environment": {
+        "php": "8.4.21",
+        "os": "Linux aarch64",
+        "opcache": true,
+        "jit": "disable",
+        "pcre": "10.44 2024-06-07",
+        "pcre_jit": true,
+        "xdebug": false
+    },
+    "results": [
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.109,
+            "leaf": 0.122,
+            "symfony": 0.242,
+            "slim": 0.227
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.31,
+            "leaf": 0.507,
+            "symfony": 0.451,
+            "slim": 0.563
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.219,
+            "leaf": 0.338,
+            "symfony": 0.365,
+            "slim": 0.404
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.291,
+            "leaf": 0.474,
+            "symfony": 0.413,
+            "slim": 0.67
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.205,
+            "leaf": 0.281,
+            "symfony": 0.522,
+            "slim": 1.099
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.32,
+            "leaf": null,
+            "symfony": 1.246,
+            "slim": 0.687
+        },
+        {
+            "layout": "separate",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.322,
+            "leaf": null,
+            "symfony": 0.444,
+            "slim": 0.621
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.129,
+            "leaf": 0.171,
+            "symfony": 0.269,
+            "slim": 0.238
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 0.434,
+            "leaf": 0.542,
+            "symfony": 0.571,
+            "slim": 2.071
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 0.29,
+            "leaf": 0.373,
+            "symfony": 0.431,
+            "slim": 1.186
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 0.415,
+            "leaf": 0.472,
+            "symfony": 0.542,
+            "slim": 4.301
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 0.313,
+            "leaf": 0.329,
+            "symfony": 0.673,
+            "slim": 7.531
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 0.437,
+            "leaf": null,
+            "symfony": 4.387,
+            "slim": 2.278
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 0.444,
+            "leaf": null,
+            "symfony": 0.578,
+            "slim": 2.149
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.103,
+            "leaf": 0.117,
+            "symfony": 0.242,
+            "slim": 0.211
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.309,
+            "leaf": 1.621,
+            "symfony": 0.446,
+            "slim": 0.545
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.213,
+            "leaf": 0.888,
+            "symfony": 0.355,
+            "slim": 0.391
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.291,
+            "leaf": 2.702,
+            "symfony": 0.414,
+            "slim": 0.66
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.202,
+            "leaf": 2.464,
+            "symfony": 0.535,
+            "slim": 1.069
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.328,
+            "leaf": null,
+            "symfony": 1.252,
+            "slim": 0.685
+        },
+        {
+            "layout": "shared",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.32,
+            "leaf": null,
+            "symfony": 0.443,
+            "slim": 0.601
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.113,
+            "leaf": 0.142,
+            "symfony": 0.251,
+            "slim": 0.22
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 0.45,
+            "leaf": 17.259,
+            "symfony": 0.587,
+            "slim": 2.298
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 0.29,
+            "leaf": 8.699,
+            "symfony": 0.437,
+            "slim": 1.284
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 0.412,
+            "leaf": 38.581,
+            "symfony": 0.553,
+            "slim": 5.058
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 0.327,
+            "leaf": 39.174,
+            "symfony": 0.67,
+            "slim": 9.005
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 0.447,
+            "leaf": null,
+            "symfony": 4.71,
+            "slim": 2.53
+        },
+        {
+            "layout": "shared",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 0.458,
+            "leaf": null,
+            "symfony": 0.591,
+            "slim": 2.372
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.312,
+            "leaf": null,
+            "symfony": 0.465,
+            "slim": 0.791
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.342,
+            "leaf": null,
+            "symfony": 0.501,
+            "slim": 0.843
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.338,
+            "leaf": null,
+            "symfony": 0.498,
+            "slim": 0.851
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.327,
+            "leaf": null,
+            "symfony": 0.46,
+            "slim": 1.154
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.21,
+            "leaf": null,
+            "symfony": 0.553,
+            "slim": 2.008
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.344,
+            "leaf": null,
+            "symfony": 1.548,
+            "slim": 0.956
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.348,
+            "leaf": null,
+            "symfony": 0.498,
+            "slim": 0.878
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.5,
+            "leaf": null,
+            "symfony": 0.684,
+            "slim": 6.645
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 0.541,
+            "leaf": null,
+            "symfony": 0.729,
+            "slim": 6.793
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 0.531,
+            "leaf": null,
+            "symfony": 0.707,
+            "slim": 7.084
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 0.523,
+            "leaf": null,
+            "symfony": 0.674,
+            "slim": 15.188
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 0.398,
+            "leaf": null,
+            "symfony": 0.772,
+            "slim": 29.078
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 0.527,
+            "leaf": null,
+            "symfony": 7.104,
+            "slim": 6.759
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 0.545,
+            "leaf": null,
+            "symfony": 0.717,
+            "slim": 6.546
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.315,
+            "leaf": null,
+            "symfony": 0.462,
+            "slim": 0.728
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.341,
+            "leaf": null,
+            "symfony": 0.492,
+            "slim": 0.765
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.331,
+            "leaf": null,
+            "symfony": 0.482,
+            "slim": 0.761
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.326,
+            "leaf": null,
+            "symfony": 0.451,
+            "slim": 1.047
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.206,
+            "leaf": null,
+            "symfony": 0.552,
+            "slim": 1.782
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.337,
+            "leaf": null,
+            "symfony": 1.592,
+            "slim": 0.894
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.352,
+            "leaf": null,
+            "symfony": 0.489,
+            "slim": 0.811
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.497,
+            "leaf": null,
+            "symfony": 0.685,
+            "slim": 7.405
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 0.532,
+            "leaf": null,
+            "symfony": 0.731,
+            "slim": 7.607
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 0.517,
+            "leaf": null,
+            "symfony": 0.705,
+            "slim": 7.666
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 0.505,
+            "leaf": null,
+            "symfony": 0.654,
+            "slim": 16.942
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 0.42,
+            "leaf": null,
+            "symfony": 0.831,
+            "slim": 33.605
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 0.544,
+            "leaf": null,
+            "symfony": 7.576,
+            "slim": 8.392
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 0.594,
+            "leaf": null,
+            "symfony": 0.741,
+            "slim": 8.176
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.503,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.534,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.53,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.645,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.523,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.502,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.55,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 3.113,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 3.196,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 3.647,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 6.782,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 6.095,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 3.227,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "optional-locale",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 3.302,
+            "leaf": null,
+            "symfony": null,
+            "slim": null
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "static",
+            "solo": 0.106,
+            "leaf": null,
+            "symfony": 0.248,
+            "slim": 0.22
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "dynamic",
+            "solo": 0.318,
+            "leaf": null,
+            "symfony": 0.457,
+            "slim": 0.571
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "mixed",
+            "solo": 0.224,
+            "leaf": null,
+            "symfony": 0.373,
+            "slim": 0.408
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "last",
+            "solo": 0.311,
+            "leaf": null,
+            "symfony": 0.428,
+            "slim": 0.684
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "miss",
+            "solo": 0.199,
+            "leaf": null,
+            "symfony": 0.544,
+            "slim": 1.033
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "405",
+            "solo": 0.325,
+            "leaf": null,
+            "symfony": 1.245,
+            "slim": 0.692
+        },
+        {
+            "layout": "numeric",
+            "routes": 100,
+            "profile": "head",
+            "solo": 0.329,
+            "leaf": null,
+            "symfony": 0.453,
+            "slim": 0.616
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "static",
+            "solo": 0.119,
+            "leaf": null,
+            "symfony": 0.262,
+            "slim": 0.232
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "dynamic",
+            "solo": 0.437,
+            "leaf": null,
+            "symfony": 0.59,
+            "slim": 2.084
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "mixed",
+            "solo": 0.289,
+            "leaf": null,
+            "symfony": 0.449,
+            "slim": 1.176
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "last",
+            "solo": 0.429,
+            "leaf": null,
+            "symfony": 0.541,
+            "slim": 3.774
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "miss",
+            "solo": 0.317,
+            "leaf": null,
+            "symfony": 0.692,
+            "slim": 6.919
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "405",
+            "solo": 0.437,
+            "leaf": null,
+            "symfony": 4.298,
+            "slim": 2.25
+        },
+        {
+            "layout": "numeric",
+            "routes": 1000,
+            "profile": "head",
+            "solo": 0.433,
+            "leaf": null,
+            "symfony": 0.573,
+            "slim": 2.098
+        }
+    ]
+}

@@ -1,0 +1,70 @@
+{
+    "recorded_at_utc": "2026-10-25T17:00:49+00:00",
+    "unit": "milliseconds per registration, build and one lookup, median",
+    "solo_source": "/app/src",
+    "environment": {
+        "php": "8.4.21",
+        "os": "Linux aarch64",
+        "opcache": true,
+        "jit": "disable",
+        "pcre": "10.44 2024-06-07",
+        "pcre_jit": true,
+        "xdebug": false
+    },
+    "results": [
+        {
+            "layout": "separate",
+            "routes": 100,
+            "solo": 0.1098,
+            "solo-cached": 0.0014,
+            "leaf": 0.1152,
+            "symfony": 0.5912,
+            "slim": 0.1732
+        },
+        {
+            "layout": "separate",
+            "routes": 1000,
+            "solo": 1.1794,
+            "solo-cached": 0.0016,
+            "leaf": 1.1337,
+            "symfony": 9.557,
+            "slim": 10.1779
+        },
+        {
+            "layout": "tenant",
+            "routes": 100,
+            "solo": 0.2005,
+            "solo-cached": 0.0015,
+            "leaf": null,
+            "symfony": 0.9868,
+            "slim": 0.139
+        },
+        {
+            "layout": "tenant",
+            "routes": 1000,
+            "solo": 2.2863,
+            "solo-cached": 0.0018,
+            "leaf": null,
+            "symfony": 11.3356,
+            "slim": 1.459
+        },
+        {
+            "layout": "locale",
+            "routes": 100,
+            "solo": 0.2588,
+            "solo-cached": 0.0015,
+            "leaf": null,
+            "symfony": 0.993,
+            "slim": 0.1433
+        },
+        {
+            "layout": "locale",
+            "routes": 1000,
+            "solo": 2.841,
+            "solo-cached": 0.0018,
+            "leaf": null,
+            "symfony": 11.3359,
+            "slim": 1.5087
+        }
+    ]
+}

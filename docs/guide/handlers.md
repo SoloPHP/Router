@@ -1,172 +1,104 @@
 # Handlers
 
-The router supports three types of handlers.
+All registration methods accept an opaque `mixed` handler, including non-callable objects such as application request handlers. The router stores handlers and returns the selected handler from `resolve()`. Your application instantiates controllers, executes middleware, and sends responses.
 
-## Invokable Controllers
+The registration examples assume `$routes = new Solo\Router\RouteCollector()`.
 
-Classes with `__invoke()` method:
+## Invokable controllers
 
 ```php
 class UserController
 {
     public function __invoke($id = null)
     {
-        return "User: " . ($id ?? 'all');
+        return 'User: ' . ($id ?? 'all');
     }
 }
 
-// Pass the class name directly
-$router->get('/users', UserController::class);
-$router->get('/users/{id}', UserController::class);
+$routes->get('/users', UserController::class);
+$routes->get('/users/{id}', UserController::class);
 ```
 
-## Controller Methods
-
-Classes with specific methods:
+## Controller methods
 
 ```php
-class PostController
+$routes->get('/posts', [PostController::class, 'index']);
+$routes->get('/posts/{id}', [PostController::class, 'show']);
+$routes->post('/posts', [PostController::class, 'store']);
+```
+
+## Closures and functions
+
+```php
+$routes->get('/about', fn () => 'About page');
+$routes->get('/users/{id}', fn ($id) => "User: $id");
+
+function contactHandler(): string
 {
-    public function index()
-    {
-        return "All posts";
-    }
-    
-    public function show($id)
-    {
-        return "Post: $id";
-    }
-    
-    public function store()
-    {
-        return "Create post";
-    }
+    return 'Contact page';
 }
 
-// Pass [ClassName::class, 'methodName']
-$router->get('/posts', [PostController::class, 'index']);
-$router->get('/posts/{id}', [PostController::class, 'show']);
-$router->post('/posts', [PostController::class, 'store']);
+$routes->get('/contact', 'contactHandler');
 ```
 
-## Closures and Functions
+Closures and objects work for routers built in memory. The [route cache](/features/caching) stores only plain values, so use class names, `[Class::class, 'method']` arrays, or function names for routes you want to cache.
 
-Direct callable handlers:
+## Dispatching handlers
 
-```php
-// Closure
-$router->get('/about', function() {
-    return "About page";
-});
-
-// Closure with parameters
-$router->get('/users/{id}', function($id) {
-    return "User: $id";
-});
-
-// Named function
-function contactHandler() {
-    return "Contact page";
-}
-
-$router->get('/contact', 'contactHandler');
-```
-
----
-
-## Dispatching Handlers
-
-After matching a route, dispatch the handler:
+The following is an application-level example for controllers without constructor dependencies:
 
 ```php
-$match = $router->match($method, $uri);
+use Solo\Router\Results\Matched;
+use Solo\Router\Results\MethodNotAllowed;
 
-if ($match === false) {
-    $allowed = $router->getAllowedMethods($uri);
-    if ($allowed !== []) {
+$router = $routes->build();
+$result = $router->resolve($method, $uri);
+
+if (!$result instanceof Matched) {
+    if ($result instanceof MethodNotAllowed) {
         http_response_code(405);
-        header('Allow: ' . implode(', ', $allowed));
+        header('Allow: ' . implode(', ', $result->allowedMethods));
     } else {
         http_response_code(404);
     }
-    exit;
+    return;
 }
 
-$handler = $match['handler'];
-$params = $match['params'];
+$handler = $result->route->handler;
+$params = $result->params;
 
-// Dispatch based on handler type
 if (is_callable($handler)) {
-    // Closure or function
-    $response = call_user_func_array($handler, $params);
-    
+    $response = $handler(...$params);
 } elseif (is_array($handler)) {
-    // [ClassName::class, 'method']
-    [$class, $method] = $handler;
+    [$class, $action] = $handler;
     $controller = new $class();
-    $response = call_user_func_array([$controller, $method], $params);
-    
+    $response = $controller->$action(...$params);
 } elseif (is_string($handler) && class_exists($handler)) {
-    // Invokable class
     $controller = new $handler();
-    $response = call_user_func_array($controller, $params);
+    $response = $controller(...$params);
+} else {
+    throw new RuntimeException('Unsupported application handler');
 }
 ```
 
-## With Dependency Injection
+Parameters are associative, so unpacking passes named arguments. Controller parameter names must match the route parameter names. Optional route parameters need corresponding defaults in the handler.
 
-Using a DI container:
+## Dependency injection
+
+If controllers have dependencies, resolve them with your application's container after handling the non-matched results above:
 
 ```php
-$match = $router->match($method, $uri);
+$handler = $result->route->handler;
+$params = $result->params;
 
-if ($match === false) {
-    return $this->notFound();
+if (is_array($handler) && is_string($handler[0])) {
+    [$class, $action] = $handler;
+    $response = $container->get($class)->$action(...$params);
+} elseif (is_string($handler) && class_exists($handler)) {
+    $response = $container->get($handler)(...$params);
+} else {
+    $response = $handler(...$params);
 }
-
-$handler = $match['handler'];
-$params = $match['params'];
-
-if (is_array($handler)) {
-    [$class, $method] = $handler;
-    $controller = $container->get($class);
-    return $controller->$method(...$params);
-}
-
-if (is_string($handler) && class_exists($handler)) {
-    $controller = $container->get($handler);
-    return $controller(...$params);
-}
-
-return $handler(...$params);
 ```
 
-## With Middleware
-
-Process middleware before dispatching:
-
-```php
-$match = $router->match($method, $uri);
-
-if ($match === false) {
-    return $this->notFound();
-}
-
-// Run middleware chain
-$middlewares = $match['middlewares'];
-foreach ($middlewares as $middleware) {
-    $middlewareInstance = $container->get($middleware);
-    $response = $middlewareInstance->handle($request, function($req) {
-        return null; // Continue
-    });
-    
-    if ($response !== null) {
-        return $response; // Middleware returned response
-    }
-}
-
-// Dispatch handler
-$handler = $match['handler'];
-$params = $match['params'];
-// ... dispatch as shown above
-```
+The container and dispatch policy belong to the application. See [middleware](/features/middleware) for combining middleware with dispatch.

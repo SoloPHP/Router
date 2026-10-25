@@ -1,102 +1,76 @@
 # RouteCollector
 
-The main class for defining routes with a fluent API.
+`RouteCollector` is an independent builder. It collects mutable [RouteDefinition](/api/route#routedefinition) objects and builds a runtime [Router](/api/router). It does not extend `Router`.
 
 ```php
 use Solo\Router\RouteCollector;
 
-$router = new RouteCollector();
+$routes = new RouteCollector();
+$routes->get('/users/{id}', [UserController::class, 'show'])
+    ->name('users.show')
+    ->middleware(AuthMiddleware::class);
+
+$router = $routes->build();
 ```
 
-## HTTP Method Shortcuts
+## HTTP method shortcuts
 
-### get()
+Each shortcut accepts `(string $path, mixed $handler)` and returns a mutable `RouteDefinition`:
+
+| Method | HTTP method |
+|--------|-------------|
+| `get()` | GET |
+| `head()` | HEAD |
+| `post()` | POST |
+| `put()` | PUT |
+| `patch()` | PATCH |
+| `delete()` | DELETE |
+| `options()` | OPTIONS |
 
 ```php
-public function get(string $path, callable|array|string $handler): Route
+$routes->get('/users', [UserController::class, 'index']);
+$routes->post('/users', [UserController::class, 'store']);
+$routes->put('/users/{id}', [UserController::class, 'update']);
+$routes->patch('/users/{id}', [UserController::class, 'patch']);
+$routes->delete('/users/{id}', [UserController::class, 'destroy']);
+$routes->head('/status', [StatusController::class, 'head']);
+$routes->options('/{any:.*}', [CorsController::class, 'preflight']);
 ```
 
-Register a GET route.
+HEAD falls back to GET when no explicit HEAD route matches the requested path.
+
+## addRoute()
 
 ```php
-$router->get('/users', [UserController::class, 'index']);
-$router->get('/users/{id}', [UserController::class, 'show']);
+public function addRoute(
+    string $method,
+    string $path,
+    mixed $handler,
+    array $options = []
+): RouteDefinition
 ```
 
-### head()
+Registers a definition. Method names are normalized to uppercase; unsupported methods throw `InvalidArgumentException` immediately.
+
+| Option | Type | Default | Meaning |
+|--------|------|---------|---------|
+| `group` | `string` | `''` | Additional URL prefix |
+| `middlewares` | `array` | `[]` | Route middleware |
+| `name` | `string\|null` | `null` | Route name |
+| `attributes` | `array` | `[]` | Custom attributes |
 
 ```php
-public function head(string $path, callable|array|string $handler): Route
+$routes->addRoute('GET', '/users/{id}', [UserController::class, 'show'], [
+    'group' => '/api',
+    'middlewares' => [AuthMiddleware::class],
+    'name' => 'users.show',
+    'attributes' => ['permission' => 'users.view'],
+]);
 ```
 
-Register a HEAD route. Usually not needed — HEAD requests automatically fall back to GET routes per RFC 7231.
+Inside an active group, `addRoute()` combines the group prefix with the `group` option, appends the option middleware after group middleware, and lets option attributes override inherited attributes by key.
 
-```php
-// Explicit HEAD route (optional — GET routes handle HEAD automatically)
-$router->head('/status', [StatusController::class, 'head']);
-```
-
-### post()
-
-```php
-public function post(string $path, callable|array|string $handler): Route
-```
-
-Register a POST route.
-
-```php
-$router->post('/users', [UserController::class, 'store']);
-```
-
-### put()
-
-```php
-public function put(string $path, callable|array|string $handler): Route
-```
-
-Register a PUT route.
-
-```php
-$router->put('/users/{id}', [UserController::class, 'update']);
-```
-
-### patch()
-
-```php
-public function patch(string $path, callable|array|string $handler): Route
-```
-
-Register a PATCH route.
-
-```php
-$router->patch('/users/{id}', [UserController::class, 'patch']);
-```
-
-### delete()
-
-```php
-public function delete(string $path, callable|array|string $handler): Route
-```
-
-Register a DELETE route.
-
-```php
-$router->delete('/users/{id}', [UserController::class, 'destroy']);
-```
-
-### options()
-
-```php
-public function options(string $path, callable|array|string $handler): Route
-```
-
-Register an OPTIONS route, e.g. for CORS preflight requests.
-
-```php
-$router->options('/{any:.*}', [CorsController::class, 'preflight']);
-```
-
----
+Duplicate paths/names and invalid path syntax or regexes are rejected at `build()`. Attribute keys must be names: integer keys or integer strings such as `'42'` are rejected when assigned. Middleware keys must be positional: a string key in the `middlewares` option throws `InvalidArgumentException` immediately, since it usually means attributes were passed in the wrong option.
 
 ## group()
 
@@ -109,87 +83,54 @@ public function group(
 ): void
 ```
 
-Create a route group with shared prefix, middleware and attributes.
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `$prefix` | `string` | URL prefix for all routes in the group |
-| `$callback` | `callable` | Function receiving RouteCollector instance |
-| `$middlewares` | `array` | Middleware to apply to all routes |
-| `$attributes` | `array` | [Attributes](/features/attributes) for all routes; an inner group or the route replaces a value by key |
-
-**Throws:**
-
-- `InvalidArgumentException` — If `$middlewares` has string keys, e.g. attributes passed as the third argument
-- `InvalidArgumentException` — If `$attributes` has integer keys, e.g. middleware passed as the fourth argument
-
-**Example:**
+The callback receives this collector with the group context applied. Prefixes concatenate. Middleware accumulates from outer groups to inner groups, then the route. An inner group or route attribute replaces an outer value with the same key.
 
 ```php
-$router->group('/api/v1', function(RouteCollector $router) {
-    $router->get('/users', [UserController::class, 'index']);
-    $router->get('/posts', [PostController::class, 'index']);
-}, [ApiMiddleware::class, AuthMiddleware::class]);
-```
-
-**Nested groups:**
-
-```php
-$router->group('/api', function(RouteCollector $router) {
-    $router->group('/v1', function(RouteCollector $router) {
-        $router->get('/users', [V1UserController::class, 'index']);
-    });
-    
-    $router->group('/v2', function(RouteCollector $router) {
-        $router->get('/users', [V2UserController::class, 'index']);
-    });
-});
-```
-
----
-
-## Inherited from Router
-
-RouteCollector extends Router, so all Router methods are available:
-
-- [`match()`](/api/router#match)
-- [`getRoutes()`](/api/router#getroutes)
-- [`getRouteByName()`](/api/router#getroutebyname)
-- [`addRoute()`](/api/router#addroute)
-
----
-
-## Complete Example
-
-```php
-use Solo\Router\RouteCollector;
-
-$router = new RouteCollector();
-
-// Public routes
-$router->get('/', [HomeController::class, 'index'])->name('home');
-$router->get('/about', [PageController::class, 'about'])->name('about');
-
-// Auth routes
-$router->group('/auth', function(RouteCollector $router) {
-    $router->get('/login', [AuthController::class, 'showLogin'])->name('login');
-    $router->post('/login', [AuthController::class, 'login'])->name('login.submit');
-    $router->post('/logout', [AuthController::class, 'logout'])->name('logout');
-});
-
-// API routes
-$router->group('/api', function(RouteCollector $router) {
-    $router->group('/v1', function(RouteCollector $router) {
-        $router->get('/users', [ApiUserController::class, 'index']);
-        $router->get('/users/{id}', [ApiUserController::class, 'show']);
-        $router->post('/users', [ApiUserController::class, 'store']);
-        $router->put('/users/{id}', [ApiUserController::class, 'update']);
-        $router->delete('/users/{id}', [ApiUserController::class, 'destroy']);
+$routes->group('/api', function (RouteCollector $routes) {
+    $routes->group('/v1', function (RouteCollector $routes) {
+        $routes->get('/users', [UserController::class, 'index']);
     }, [RateLimitMiddleware::class]);
-}, [ApiAuthMiddleware::class, JsonMiddleware::class]);
-
-// Match request
-$match = $router->match($_SERVER['REQUEST_METHOD'], parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+}, [ApiAuthMiddleware::class], ['area' => 'api']);
 ```
+
+String keys in group middleware or integer keys in group attributes throw `InvalidArgumentException`, helping catch swapped argument arrays. Group context is restored after the callback, including when it throws.
+
+## build()
+
+```php
+public function build(): Router
+```
+
+Validates definitions, creates runtime routes, and compiles one pattern per method. These throw `InvalidArgumentException` here:
+
+- duplicate names and duplicate method/full-path pairs;
+- a route that can never match because an earlier route with the same method has the same pattern, e.g. `/users/{uid}` after `/users/{id}`;
+- malformed paths, invalid parameter regexes, and [unsupported regex syntax](/features/parameters#validation);
+- a route whose pattern PCRE cannot compile, e.g. because it has more than 65,535 parameters.
+
+```php
+$definition = $routes->get('/profile', [ProfileController::class, 'show'])
+    ->name('profile');
+
+$first = $routes->build();
+$definition->name('account')->middleware(AuthMiddleware::class);
+$second = $routes->build();
+
+$first->getRouteByName('profile'); // Original Route snapshot
+$first->getRouteByName('account'); // null
+$second->getRouteByName('account'); // New Route snapshot with auth middleware
+```
+
+Later registrations and fluent edits affect subsequent builds only. Build once after configuration and reuse that router when your application's process lifetime permits it.
+
+Route metadata is fixed when building: arrays are PHP values, so later edits to a definition do not change an existing router. The router does not deep-clone handler objects, closures, object-valued attributes, or values stored through PHP references inside arrays.
+
+## getRoutes()
+
+```php
+public function getRoutes(): array
+```
+
+Returns `list<RouteDefinition>` in registration order for inspecting or configuring the builder. These are the original mutable definitions. `Router::getRoutes()` instead returns runtime `Route` snapshots.
+
+The collector has no `resolve()`, `match()`, or `getRouteByName()` method. Build a router to resolve requests or look up the final names.
