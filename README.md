@@ -14,6 +14,7 @@ PHP router with a fluent route builder, immutable runtime routes, middleware met
 - **Typed results** — `resolve()` returns `Matched`, `NotFound`, or `MethodNotAllowed`
 - **Compiled matching** — Static routes use hash lookup; the dynamic routes of each method compile into one regex shaped as an order-preserving prefix tree
 - **Fluent definitions** — Chain `name()`, `middleware()`, and `attribute()` before building
+- **URL generation** — `UrlGenerator` builds the path of a named route, with encoded values checked against their patterns
 - **Groups** — Nested prefixes, middleware, and attributes
 - **Advanced patterns** — Optional segments anywhere, nested optionals, and regex constraints
 - **Route cache** — `RouteCache` keeps a built router in a PHP file that OPcache serves in under 2 µs per request, without registering or building routes
@@ -36,6 +37,7 @@ require __DIR__ . '/vendor/autoload.php';
 use Solo\Router\RouteCollector;
 use Solo\Router\Results\Matched;
 use Solo\Router\Results\MethodNotAllowed;
+use Solo\Router\UrlGenerator;
 
 $routes = new RouteCollector();
 $routes->get('/users', [UserController::class, 'index']);
@@ -67,6 +69,9 @@ if ($result instanceof Matched) {
 } else {
     http_response_code(404);
 }
+
+$urls = new UrlGenerator($router);
+$urls->generate('users.show', ['id' => 123]); // '/users/123'
 ```
 
 Changing a definition after `build()` affects subsequent builds only. Runtime routes have readonly properties. Handlers and object-valued attributes remain application-owned objects; the router does not deep-clone them.
@@ -94,14 +99,16 @@ Building 1,000 routes takes 1.2–2.8 ms; `RouteCache` loads a built router in u
 - [Groups](https://solophp.github.io/Router/features/groups)
 - [Middleware](https://solophp.github.io/Router/features/middleware)
 - [Named routes](https://solophp.github.io/Router/features/named-routes)
+- [URL generation](https://solophp.github.io/Router/features/url-generation)
 - [Attributes](https://solophp.github.io/Router/features/attributes)
 - [Route cache](https://solophp.github.io/Router/features/caching)
 - [Builder API](https://solophp.github.io/Router/api/route-collector)
 - [Runtime API](https://solophp.github.io/Router/api/router)
 - [Route and definition API](https://solophp.github.io/Router/api/route)
 - [Route cache API](https://solophp.github.io/Router/api/route-cache)
+- [URL generator API](https://solophp.github.io/Router/api/url-generator)
 
-The package requires only PHP. Route matching, metadata, compilation, and route caching are its scope; applications handle dispatch and URL generation.
+The package requires only PHP. Route matching, URL generation, metadata, compilation, and route caching are its scope; applications handle dispatch.
 
 ## Development
 
@@ -110,7 +117,7 @@ composer install
 composer test
 ```
 
-The test matrix covers PHP 8.3–8.5. See the [4.0.0 release notes](CHANGELOG.md) and [performance measurements](https://solophp.github.io/Router/guide/performance).
+The test matrix covers PHP 8.3–8.5. See the [release notes](CHANGELOG.md) and [performance measurements](https://solophp.github.io/Router/guide/performance).
 
 ## License
 

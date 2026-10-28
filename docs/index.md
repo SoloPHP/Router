@@ -34,7 +34,7 @@ features:
     details: Optional segments in any position, nested optionals, regex constraints.
   - icon: 🏷️
     title: Named Routes
-    details: Retrieve immutable runtime routes by their final names.
+    details: Retrieve immutable runtime routes by their final names and generate their paths.
   - icon: 🧩
     title: Route Attributes
     details: Custom route data such as permissions, available on typed match results.

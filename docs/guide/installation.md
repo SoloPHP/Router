@@ -15,7 +15,7 @@ Install Solo Router 4:
 composer require "solophp/router:^4.0"
 ```
 
-These pages document version 4.0.0. When upgrading an existing application, follow the [v3 to v4 migration guide](/guide/migration-v4).
+These pages document version 4.1.0. When upgrading an existing application, follow the [v3 to v4 migration guide](/guide/migration-v4).
 
 ## Dependencies and integrations
 

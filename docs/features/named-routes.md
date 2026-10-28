@@ -63,4 +63,11 @@ $isDashboard = $currentRouteName === 'admin.dashboard';
 
 ## URL generation
 
-A name lookup returns a route pattern, not a generated URL. The package does not provide `url()`, `route()`, or a URL generator. An application URL generator needs to understand the full route grammar, optional segments, parameter constraints, and encoding; replacing placeholders with a simple regex does not implement those rules.
+A name lookup returns a route pattern. To build a path from it, use [UrlGenerator](/features/url-generation):
+
+```php
+use Solo\Router\UrlGenerator;
+
+$urls = new UrlGenerator($router);
+echo $urls->generate('users.show', ['id' => 42]); // '/users/42'
+```
