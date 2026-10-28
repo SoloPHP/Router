@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1.0 - 2026-10-28
+
+### Added
+
+- `UrlGenerator` generates the path of a named route: `(new UrlGenerator($router))->generate('tasks.show', ['id' => 5])` returns `/tasks/5`. It fills in `{name}` and `{name:regex}` parameters and optional segments, encodes values with `rawurlencode()`, keeping `/` where the pattern accepts it, checks each encoded value against its pattern, and appends query values with `http_build_query()`.
+- An unknown route name, a missing parameter, a value that does not match its pattern, a parameter the route does not have (query values go in the third argument), and a path with a raw regex group throw `InvalidArgumentException` naming the route and the parameter.
+- The generator reads route paths only, so it works with routers restored by `RouteCache` or `Router::fromArray()`. `Router`, the compilers, and the cache format are unchanged: caches written by 4.0 stay valid.
+
 ## 4.0.0 - 2026-10-25
 
 ### Breaking changes

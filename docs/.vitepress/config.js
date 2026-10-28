@@ -20,7 +20,7 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/installation' },
       { text: 'Features', link: '/features/parameters' },
       { text: 'API', link: '/api/route-collector' },
-      { text: 'v4.0.0', link: '/guide/migration-v4' },
+      { text: 'v4.1.0', link: '/guide/migration-v4' },
       {
         text: 'Links',
         items: [
@@ -50,6 +50,7 @@ export default defineConfig({
           { text: 'Route Groups', link: '/features/groups' },
           { text: 'Middleware', link: '/features/middleware' },
           { text: 'Named Routes', link: '/features/named-routes' },
+          { text: 'URL Generation', link: '/features/url-generation' },
           { text: 'Route Attributes', link: '/features/attributes' },
           { text: 'Route Cache', link: '/features/caching' }
         ]
@@ -60,7 +61,8 @@ export default defineConfig({
           { text: 'RouteCollector', link: '/api/route-collector' },
           { text: 'Router', link: '/api/router' },
           { text: 'Route', link: '/api/route' },
-          { text: 'RouteCache', link: '/api/route-cache' }
+          { text: 'RouteCache', link: '/api/route-cache' },
+          { text: 'UrlGenerator', link: '/api/url-generator' }
         ]
       }
     ],

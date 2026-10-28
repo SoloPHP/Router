@@ -1,6 +1,6 @@
 {
   "name": "solo-router-docs",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "type": "module",
   "description": "Documentation for Solo Router 4",
   "scripts": {
